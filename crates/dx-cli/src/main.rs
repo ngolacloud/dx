@@ -7,6 +7,7 @@
 //! `release` chegam em incrementos seguintes e estão marcados como tal.
 
 mod scaffold;
+mod security;
 mod suspect;
 
 use std::process::{Command, ExitCode};
@@ -245,16 +246,12 @@ fn run(cmd: Commands) -> Result<ExitCode> {
                 }
             }
         }
-        Commands::Audit => not_yet(
-            "audit",
-            2,
-            "gate de segurança com cargo-audit/cargo-deny, cache de veredicto e validade de base",
-        ),
-        Commands::Doctor => not_yet(
-            "doctor",
-            2,
-            "diagnóstico de toolchain/base de advisories/política",
-        ),
+        Commands::Audit => {
+            let (root, manifest_path) = locate_manifest(None)?;
+            let _ = manifest_path;
+            security::cmd_audit(&root)
+        }
+        Commands::Doctor => security::cmd_doctor(),
         Commands::Update { .. } => not_yet(
             "update",
             2,

@@ -220,6 +220,7 @@ dependencies = [
  "clap",
  "dx-core",
  "dx-manifest",
+ "dx-security",
  "predicates",
  "sha2",
  "tempfile",
@@ -246,6 +247,19 @@ dependencies = [
  "tempfile",
  "thiserror",
  "toml_edit",
+]
+
+[[package]]
+name = "dx-security"
+version = "0.0.1"
+dependencies = [
+ "camino",
+ "dx-core",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror",
 ]
 
 [[package]]

@@ -17,6 +17,7 @@ path = "src/main.rs"
 [dependencies]
 dx-core.workspace = true
 dx-manifest.workspace = true
+dx-security.workspace = true
 anyhow.workspace = true
 camino.workspace = true
 clap = { version = "4", features = ["derive"] }
