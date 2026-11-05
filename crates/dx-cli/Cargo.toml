@@ -1,6 +1,8 @@
 [package]
 name = "ngoladx-cli"
-version.workspace = true
+# O binário versiona independentemente das libs (0.0.1): esta release só altera
+# o `ngoladx-cli` (autocomplete dinâmico de shell), não as bibliotecas `dx_*`.
+version = "0.0.2"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -33,6 +35,7 @@ camino.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 clap = { version = "4", features = ["derive"] }
+clap_complete = { version = "4", features = ["unstable-dynamic"] }
 tempfile.workspace = true
 
 [dev-dependencies]

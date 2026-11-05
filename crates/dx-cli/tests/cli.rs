@@ -404,3 +404,75 @@ fn sha256_hex(s: &str) -> String {
     h.update(s.as_bytes());
     h.finalize().iter().map(|b| format!("{b:02x}")).collect()
 }
+
+// --- completação dinâmica de shell ----------------------------------------
+//
+// Reproduz o que a shell faz: define `COMPLETE=bash`, o índice da palavra em
+// completação e passa a linha de comando depois de `--`. A saída usa `\x0b`
+// (IFS) como separador — basta verificar que os candidatos esperados constam.
+
+/// Dispara um pedido de completação (`index` = COMP_CWORD; `words` inclui o
+/// nome do binário na posição 0).
+fn complete(index: usize, words: &[&str]) -> Command {
+    let mut cmd = dx();
+    cmd.env("COMPLETE", "bash")
+        .env("_CLAP_IFS", "\u{0b}")
+        .env("_CLAP_COMPLETE_INDEX", index.to_string())
+        .env("_CLAP_COMPLETE_COMP_TYPE", "9")
+        .env("_CLAP_COMPLETE_SPACE", "true")
+        .arg("--")
+        .args(words);
+    cmd
+}
+
+#[test]
+fn completion_lists_top_level_commands() {
+    complete(1, &["dx", ""])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("build"))
+        .stdout(predicate::str::contains("add"))
+        .stdout(predicate::str::contains("bundle"));
+}
+
+#[test]
+fn completion_completes_build_profile_values() {
+    complete(3, &["dx", "build", "--profile", ""])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("throughput"))
+        .stdout(predicate::str::contains("size"));
+}
+
+#[test]
+fn completion_completes_test_format_values() {
+    complete(3, &["dx", "test", "--format", ""])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("junit"))
+        .stdout(predicate::str::contains("html"));
+}
+
+#[test]
+fn completion_completes_template_values() {
+    complete(4, &["dx", "new", "demo", "--template", ""])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("seiva"));
+}
+
+#[test]
+fn completion_completes_manifest_deps_for_remove() {
+    // Projecto com uma dependência declarada ⇒ `dx remove <TAB>` sugere-a.
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(
+        tmp.path().join("Cargo.toml"),
+        "[package]\nname = \"demo\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\nserde = \"1\"\n",
+    )
+    .unwrap();
+    complete(2, &["dx", "remove", ""])
+        .current_dir(tmp.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("serde"));
+}

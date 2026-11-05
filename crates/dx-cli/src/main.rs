@@ -12,6 +12,7 @@
 mod benchcmd;
 mod buildcmd;
 mod bundlecmd;
+mod complete;
 mod envcmd;
 mod plancmd;
 mod releasecmd;
@@ -28,7 +29,7 @@ use std::process::{Command, ExitCode};
 
 use anyhow::{bail, Context, Result};
 use camino::{Utf8Path, Utf8PathBuf};
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, CommandFactory, Parser, Subcommand};
 use dx_core::{Change, DepKind, DepSpec, Plan, Source};
 use dx_manifest::{apply_transaction, commit_manifest, recover, FileWrite, Manifest};
 use dx_security::{run_gate, Decision, Policy};
@@ -54,7 +55,7 @@ enum Commands {
         #[arg(long)]
         bin: bool,
         /// Template: seiva (platform with a managed composition).
-        #[arg(long)]
+        #[arg(long, add = complete::templates())]
         template: Option<String>,
         #[command(flatten)]
         dry: DryRun,
@@ -65,7 +66,7 @@ enum Commands {
         lib: bool,
         #[arg(long)]
         bin: bool,
-        #[arg(long)]
+        #[arg(long, add = complete::templates())]
         template: Option<String>,
         #[command(flatten)]
         dry: DryRun,
@@ -73,6 +74,7 @@ enum Commands {
     /// Add a dependency (idempotent).
     Add {
         /// `name` or `name@requirement`.
+        #[arg(add = complete::crate_names())]
         spec: String,
         #[arg(long, value_delimiter = ',')]
         features: Vec<String>,
@@ -109,6 +111,7 @@ enum Commands {
     },
     /// Remove a dependency (idempotent).
     Remove {
+        #[arg(add = complete::manifest_deps())]
         name: String,
         #[arg(long)]
         dev: bool,
@@ -133,7 +136,7 @@ enum Commands {
         #[arg(long)]
         release: bool,
         /// LLVM profile: dev | release | throughput | size.
-        #[arg(long)]
+        #[arg(long, add = complete::build_profile())]
         profile: Option<String>,
         /// target-cpu=native (NOT for distributed releases).
         #[arg(long)]
@@ -149,7 +152,7 @@ enum Commands {
     /// Measure a clean build per profile (time/memory/size).
     BenchBuild {
         /// Comma-separated list of profiles (default: all).
-        #[arg(long)]
+        #[arg(long, add = complete::build_profiles_csv())]
         profiles: Option<String>,
     },
     /// Benchmark the dependency pipeline (resolution vs gate; §9).
@@ -177,10 +180,10 @@ enum Commands {
     /// Run a (configurable) test suite and emit a versioned report.
     Test {
         /// Suite: unit | doc | integration | <defined in dx.toml>.
-        #[arg(long)]
+        #[arg(long, add = complete::test_suite())]
         suite: Option<String>,
         /// Report format: terminal | json | junit | html.
-        #[arg(long)]
+        #[arg(long, add = complete::test_format())]
         format: Option<String>,
         /// Write the report to a file instead of stdout.
         #[arg(long)]
@@ -192,6 +195,7 @@ enum Commands {
     /// Explain why a crate is in the graph (inverse tree).
     Why {
         /// Crate name (e.g. `openssl-sys`).
+        #[arg(add = complete::manifest_deps())]
         spec: String,
     },
     /// Explain the graph: duplicates or a feature's activation.
@@ -272,6 +276,11 @@ struct DryRun {
 }
 
 fn main() -> ExitCode {
+    // Pedido de completação do shell (`COMPLETE=<shell> dx`): o motor dinâmico
+    // trata-o e termina o processo. Tem de correr ANTES de qualquer escrita
+    // para stdout e antes de `Cli::parse()`.
+    clap_complete::CompleteEnv::with_factory(Cli::command).complete();
+
     let cli = Cli::parse();
     match run(cli.command) {
         Ok(code) => code,

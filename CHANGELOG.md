@@ -4,6 +4,21 @@ All notable changes to DX are documented here. DX follows the positioning in
 [ADR-0015](docs/adr/0015-posicionamento-e-plano-de-impacto.md): explainable
 changes, security before execution, predictable recovery — Cargo-compatible.
 
+## [0.0.2] — 2026-11-05 — `ngoladx-cli`
+
+CLI-only release (the `dx_*` libraries stay at `0.0.1`; no library code changed).
+
+### Added
+- **Dynamic shell autocomplete.** Beyond commands and flags, `dx` now completes
+  the **values after parameters**, resolved at runtime from the real project
+  state: crate names for `add`/`remove`/`why` (from `Cargo.toml` and the Cargo
+  cache), `--template`, build `--profile`/`--profiles`, and test
+  `--suite`/`--format` (including suites declared in `dx.toml`). Install with
+  `source <(COMPLETE=bash dx)` (bash; also zsh/fish/elvish/PowerShell).
+- **One-line installer** served from GitHub Pages:
+  `curl -fsSL https://ngolacloud.github.io/dx/install.sh | bash` (wraps
+  `cargo install ngoladx-cli`).
+
 ## [0.0.1] — 2026-11-05 (consolidated)
 
 First consolidated milestone, published to crates.io under the `ngoladx-*`

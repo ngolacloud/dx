@@ -8,6 +8,8 @@ de Rust**: Cargo e rustc continuam a resolver e compilar. O DX responde a
 e torna cada alteração recuperável. Ver [ADR-0015](docs/adr/0015-posicionamento-e-plano-de-impacto.md).
 
 - **Executável:** `dx`
+- **Instalação rápida:** `curl -fsSL https://ngolacloud.github.io/dx/install.sh | bash`
+  (usa o Cargo por baixo; ver [`site/install.sh`](site/install.sh)).
 - **Instalação:** `cargo install ngoladx-cli` (binário `dx`). Os 13 crates
   publicam-se sob o prefixo `ngoladx-` porque `dx`/`dx-cli`/`dx-core` estão
   ocupados no crates.io; os nomes de importação em Rust continuam `dx_*` —
@@ -61,6 +63,38 @@ $ dx build
 O `Cargo.toml` gerado é Cargo puro — compila e testa **sem** o Dx (critério de
 aceitação "Cargo sem DX"). Invocar o Cargo directamente contorna o gate DX, por
 desenho.
+
+## Autocomplete do shell
+
+O `dx` traz completação **dinâmica**: comandos, flags **e os valores a seguir
+aos parâmetros** — nomes de crates (de `dx add`/`remove`/`why`, lidos do
+`Cargo.toml` e do cache do Cargo), templates (`--template`), perfis de build
+(`--profile`), suites e formatos de teste (`--suite`/`--format`, incluindo as
+suites definidas em `dx.toml`). Os valores são resolvidos em tempo real a partir
+do estado do projecto, pelo que nunca divergem do comportamento dos comandos.
+
+Activar na shell actual (ou acrescentar ao ficheiro de arranque):
+
+```bash
+# bash  (~/.bashrc)
+echo 'source <(COMPLETE=bash dx)' >> ~/.bashrc
+
+# zsh   (~/.zshrc)
+echo 'source <(COMPLETE=zsh dx)' >> ~/.zshrc
+
+# fish  (~/.config/fish/config.fish)
+echo 'COMPLETE=fish dx | source' >> ~/.config/fish/config.fish
+
+# elvish (~/.config/elvish/rc.elv)
+echo 'eval (COMPLETE=elvish dx | slurp)' >> ~/.config/elvish/rc.elv
+```
+
+```powershell
+# PowerShell  ($PROFILE)
+echo "COMPLETE=powershell dx | Invoke-Expression" >> $PROFILE
+```
+
+Abrir uma nova sessão (ou `source` do ficheiro) e premir `TAB`.
 
 ## Desenho
 
