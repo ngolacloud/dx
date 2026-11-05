@@ -12,6 +12,7 @@ mod scaffold;
 mod security;
 mod stage;
 mod suspect;
+mod testcmd;
 
 use std::process::{Command, ExitCode};
 
@@ -146,10 +147,20 @@ enum Commands {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
-    /// Testar (delega em `cargo test`; `nextest` previsto no inc.3).
+    /// Testar uma suite (configurável) e emitir relatório versionado.
     Test {
+        /// Suite: unit | doc | integration | <definida em dx.toml>.
         #[arg(long)]
         suite: Option<String>,
+        /// Formato do relatório: terminal | json | junit | html.
+        #[arg(long)]
+        format: Option<String>,
+        /// Escrever o relatório num ficheiro em vez de stdout.
+        #[arg(long)]
+        out: Option<Utf8PathBuf>,
+        /// Desligar cores no terminal.
+        #[arg(long)]
+        no_ansi: bool,
     },
     /// [inc.2] Auditoria de segurança do grafo.
     Audit,
@@ -289,22 +300,12 @@ fn run(cmd: Commands) -> Result<ExitCode> {
             }
             cargo_passthrough(&a)
         }
-        Commands::Test { suite } => {
-            // Mapeamento de suites honesto: sem configuração versionada ainda,
-            // só `unit`/`doc` têm significado directo em Cargo. Ver inc.3.
-            match suite.as_deref() {
-                None | Some("unit") => {
-                    cargo_passthrough(&["test".into(), "--lib".into(), "--bins".into()])
-                }
-                Some("doc") => cargo_passthrough(&["test".into(), "--doc".into()]),
-                Some("integration") => {
-                    cargo_passthrough(&["test".into(), "--test".into(), "*".into()])
-                }
-                Some(other) => {
-                    bail!("suite `{other}` exige runner configurado em dx.toml (planeado no inc.3); sem config, não a classifico por nome")
-                }
-            }
-        }
+        Commands::Test {
+            suite,
+            format,
+            out,
+            no_ansi,
+        } => testcmd::cmd_test(suite.as_deref(), format.as_deref(), out.as_deref(), no_ansi),
         Commands::Audit => {
             let (root, manifest_path) = locate_manifest(None)?;
             let _ = manifest_path;

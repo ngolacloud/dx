@@ -43,9 +43,16 @@ Remove uma dependência; idempotente (remover o que não existe é no-op).
 
 ### Passthrough estruturado para Cargo
 `dx check` · `dx build [--release]` · `dx run [-- args]` · `dx fmt [--check]` ·
-`dx lint` · `dx test [--suite unit|doc|integration]`.
-Delegam no Cargo com argv estruturado (sem shell), herdando stdio e código de
-saída. **Ainda não aplicam o gate de segurança** (inc.2 liga-o antes do build).
+`dx lint`. Delegam no Cargo com argv estruturado (sem shell), herdando stdio e
+código de saída. **Ainda não aplicam o gate de segurança** (o `add` aplica).
+
+### `dx test --suite <nome> [--format terminal|json|junit|html] [--out <ficheiro>] [--no-ansi]`
+Corre uma suite e emite relatório. Suites: `unit`/`doc`/`integration` (builtins
+Cargo) ou definidas em `dx.toml` (`[test.suites.<nome>]` com `runner`+`kind`
+rust|command|load). Nome sem config é recusado (§8). JSON é versionado; HTML
+auto-contido; segredos removidos e HTML/XML escapados. Erro de runner nunca fica
+verde. Suites `load` falham por thresholds (p95/p99/erros/rps) lidos de
+`DX_LOAD_METRICS` / `target/dx-load-metrics.json`.
 
 ### `dx build --profile <dev|release|throughput|size> [--native] [--measure]`
 Perfis LLVM aplicados por `cargo --config` (sem tocar no Cargo.toml). `release`

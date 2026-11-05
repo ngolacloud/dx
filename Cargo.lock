@@ -248,6 +248,7 @@ dependencies = [
  "dx-integrity",
  "dx-manifest",
  "dx-release",
+ "dx-report",
  "dx-sandbox",
  "dx-security",
  "predicates",
@@ -304,6 +305,15 @@ dependencies = [
  "sha2",
  "tempfile",
  "thiserror",
+]
+
+[[package]]
+name = "dx-report"
+version = "0.0.1"
+dependencies = [
+ "serde",
+ "serde_json",
+ "toml",
 ]
 
 [[package]]

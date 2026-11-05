@@ -22,6 +22,7 @@ dx-integrity.workspace = true
 dx-sandbox.workspace = true
 dx-build.workspace = true
 dx-release.workspace = true
+dx-report.workspace = true
 anyhow.workspace = true
 camino.workspace = true
 serde_json.workspace = true

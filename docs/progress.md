@@ -40,6 +40,18 @@
 | Caminho de dependências legível (`cargo tree -i`) | Implementado | demo (smallvec → vuln-demo) |
 | `dx audit` / `dx doctor` com códigos de saída coerentes (0/4/5) | Implementado | demo ao vivo |
 
+### Relatórios + suites configuráveis (ADR-0012, crate `dx-report`) — inc.3
+
+| Item | Estado | Evidência |
+|------|--------|-----------|
+| `dx test --suite` configurável (builtins unit/doc/integration + dx.toml); nome sem config recusado | Implementado+testado | `dx-report::suite`; demo (smoke custom; e2e recusado) |
+| Formatos: terminal (ansi/no-ansi), JSON **versionado**, JUnit, HTML auto-contido | Implementado+testado | `dx-report::emit` (5 testes); demo (JUnit/JSON/terminal) |
+| HTML escapado + segredos removidos (scrub) em todos os emissores (incl. JSON) | Implementado+testado | testes scrub/escape; demo |
+| Parse libtest por-teste (ok/FAILED/ignored + durações) | Implementado+testado | `dx-report::parse` (3 testes) |
+| Erro de runner nunca fica verde | Implementado | `Suite.ok` exige runner-ok + 0 falhas |
+| Carga falha por thresholds p95/p99/erros/rps (não só exit code) | Implementado+testado | `eval_load`; demo (p95 250>100 → FALHA) |
+| Flaky (sem runner com retry) | **Não detectado** (honesto; no modelo) | — |
+
 ### `dx release prepare` (ADR-0011, crate `dx-release`) — completa inc.4
 
 | Item | Estado | Evidência |
