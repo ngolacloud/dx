@@ -40,6 +40,15 @@
 | Caminho de dependências legível (`cargo tree -i`) | Implementado | demo (smallvec → vuln-demo) |
 | `dx audit` / `dx doctor` com códigos de saída coerentes (0/4/5) | Implementado | demo ao vivo |
 
+### cargo-deny: origens, licenças, bans (ADR-0007)
+
+| Item | Estado | Evidência |
+|------|--------|-----------|
+| `cargo-deny` (licenses/sources/bans) fundido no gate; advisories ficam no cargo-audit (sem dupla contagem) | Implementado+testado | `dx-security::deny` (3 testes); demo (unicode-ident license) |
+| Categorias `license`/`ban` (Warn default, configurável); `source-not-allowed` = bloqueio duro | Implementado+testado | `policy`; demo |
+| Política de origem anti dependency-confusion (`deny.toml` embutido: unknown-registry=deny, allow-registry=crates.io) | Implementado | `assets/default-deny.toml` |
+| Honestidade de cobertura: sem cargo-deny → licenças/origens/bans "sem cobertura", gate não falha | Implementado | linha "Scanners" + `dx doctor` |
+
 ### Gate ligado ao `dx add` (ADR-0006)
 
 | Item | Estado | Evidência |

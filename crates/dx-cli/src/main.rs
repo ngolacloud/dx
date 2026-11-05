@@ -471,7 +471,12 @@ fn cmd_add(a: AddArgs) -> Result<ExitCode> {
             // Cache sob o projecto real; auditoria sobre o lockfile do staging.
             let outcome = run_gate(&root, &staging, &policy, security::now_unix())
                 .context("correr o gate de segurança (cargo-audit instalado?)")?;
-            security::report_verdict(&outcome.verdict, &staging, outcome.from_cache);
+            security::report_verdict(
+                &outcome.verdict,
+                &staging,
+                outcome.from_cache,
+                outcome.deny_covered,
+            );
             match outcome.verdict.decision {
                 Decision::Approved => {
                     commit(&manifest)?;

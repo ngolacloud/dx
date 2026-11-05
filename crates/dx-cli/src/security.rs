@@ -25,15 +25,28 @@ pub fn cmd_audit(root: &Utf8Path) -> Result<ExitCode> {
     let policy = Policy::from_env();
     let outcome = run_gate(root, root, &policy, now_unix())
         .context("correr o gate de segurança (cargo-audit instalado?)")?;
-    report_verdict(&outcome.verdict, root, outcome.from_cache);
+    report_verdict(
+        &outcome.verdict,
+        root,
+        outcome.from_cache,
+        outcome.deny_covered,
+    );
     Ok(ExitCode::from(outcome.verdict.decision.exit_code()))
 }
 
 /// Imprime um veredicto de forma legível. `tree_dir` é onde correr
 /// `cargo tree -i` para o caminho de dependências (o directório que tem o
 /// Cargo.lock avaliado — projecto real ou staging).
-pub fn report_verdict(v: &Verdict, tree_dir: &Utf8Path, from_cache: bool) {
+pub fn report_verdict(v: &Verdict, tree_dir: &Utf8Path, from_cache: bool, deny_covered: bool) {
     eprintln!("== Gate de segurança DX ==");
+    eprintln!(
+        "Scanners: cargo-audit (advisories) + cargo-deny {}",
+        if deny_covered {
+            "(licenças/origens/bans)"
+        } else {
+            "— AUSENTE: licenças/origens/bans SEM cobertura"
+        }
+    );
     eprintln!(
         "Base de advisories: {} ({})",
         if v.db_status.valid {
@@ -107,6 +120,14 @@ pub fn cmd_doctor() -> Result<ExitCode> {
     tool_version("cargo", &["--version"]);
     let scanner = audit::scanner_version();
     eprintln!("cargo-audit: {scanner}");
+    eprintln!(
+        "cargo-deny: {}",
+        if dx_security::deny::available() {
+            "presente (licenças/origens/bans)"
+        } else {
+            "AUSENTE — instalar p/ cobrir licenças/origens/bans"
+        }
+    );
 
     let policy = Policy::from_env();
     let db_path = db::default_db_path();

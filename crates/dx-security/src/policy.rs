@@ -23,6 +23,10 @@ pub enum Category {
     IntegrityFailure,
     /// Origem não permitida (ex.: fallback público de package privado). Duro.
     SourceNotAllowed,
+    /// Licença fora da allowlist (via cargo-deny).
+    License,
+    /// Dependência banida / versões múltiplas / wildcard (via cargo-deny).
+    Ban,
     /// Aviso informacional sem categoria específica.
     Notice,
 }
@@ -36,6 +40,8 @@ impl Category {
             Category::Unmaintained => "unmaintained",
             Category::IntegrityFailure => "integrity-failure",
             Category::SourceNotAllowed => "source-not-allowed",
+            Category::License => "license",
+            Category::Ban => "ban",
             Category::Notice => "notice",
         }
     }
@@ -81,6 +87,10 @@ impl Default for Policy {
         actions.insert(Category::SourceNotAllowed, Action::Block);
         actions.insert(Category::Yanked, Action::Warn);
         actions.insert(Category::Unmaintained, Action::Warn);
+        // Licença/ban são específicos da organização: avisam por omissão,
+        // configuráveis para Block. Origem não permitida é bloqueio duro.
+        actions.insert(Category::License, Action::Warn);
+        actions.insert(Category::Ban, Action::Warn);
         actions.insert(Category::Notice, Action::Warn);
         Policy {
             actions,

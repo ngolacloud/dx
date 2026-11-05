@@ -1,0 +1,36 @@
+# Política cargo-deny por omissão do DX (usada quando o projecto não traz a sua).
+# Serve dois objectivos do contrato §5:
+#  - defesa contra dependency confusion (allowlist de registries; sem fallback);
+#  - verificação de licenças e de dependências banidas/duplicadas.
+# O projecto pode fornecer o seu próprio deny.toml, que tem precedência.
+
+[sources]
+# Registries desconhecidos são recusados: um package só vem de uma origem
+# explicitamente permitida. É isto que evita o fallback silencioso de um
+# package privado para crates.io.
+unknown-registry = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+# Dependências git são explícitas no manifesto; não as recusamos por omissão.
+unknown-git = "allow"
+
+[licenses]
+# Allowlist permissiva comum. Licenças fora desta lista são sinalizadas
+# (categoria `license`, acção Warn por omissão; configurável para Block).
+confidence-threshold = 0.9
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "Zlib",
+    "MPL-2.0",
+    "CC0-1.0",
+]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "warn"

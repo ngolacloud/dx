@@ -21,6 +21,7 @@ um gate de segurança da cadeia de dependências, relatórios e perfis de build.
 | Passthrough estruturado p/ Cargo (`build`/`check`/`run`/`test`/`fmt`/`lint`) | **Implementado** |
 | Gate de segurança (`dx audit`/`dx doctor`, cargo-audit, validade da base, veredicto, cache) | **Implementado + testado** |
 | Gate ligado ao `dx add` (staging isolado sem build.rs; só aterra se aprovado) | **Implementado + testado** |
+| `cargo-deny` (licenças/origens/bans) + política de origem anti dependency-confusion | **Implementado + testado** |
 | `fetch`/`update`/`release prepare` | **Planeado** — stub honesto (exit 3) |
 | Perfis LLVM / PGO / `release prepare` | **Planeado (inc.4)** |
 | Adaptador Seiva / `seiva-console-admin` | **Planeado (inc.5)** |
