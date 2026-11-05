@@ -119,7 +119,17 @@ ambiente do host e reporta **drift** (crítico falha com exit 4; snapshot da
 advisory-db é informacional). Não é reprodutibilidade byte-a-byte — é registo +
 detecção de drift.
 
+### `dx tool install|run|list`
+Ferramentas fixadas por projecto (distintas de bibliotecas). `install
+<name>[@version] [--path <dir>]` fixa em `dx-tools.toml`, instala em `.dx/tools`
+(`cargo install --locked`) e regista proveniência (origem+versão+sha256) em
+`.dx/tools/dx-tools.lock`. `run <name> [--isolated] [-- args]` corre **só** a
+ferramenta fixada, verificando o sha256 (anti-tamper); nunca cai para um binário
+do sistema; `--isolated` corre sob o sandbox (rede off, ambiente sem segredos).
+`list` mostra o estado/proveniência. Pré-compilados (binstall) são caminho
+futuro; o default compila a versão fixada.
+
 ## Planeado
 
-`dx tool` (ferramentas fixadas por projecto, proveniência/isolamento) — P1
-restante.
+Pré-compilados verificados (`cargo-binstall` sob política) e `dx bundle export`
+(pacote offline com ambiente+evidências) — trabalho futuro.

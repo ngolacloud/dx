@@ -1,0 +1,17 @@
+[package]
+name = "dx-tool"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "DX — project-pinned developer tools: manifest (dx-tools.toml), provenance lock, and resolution model."
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+toml = "0.8"
+
+[dev-dependencies]
+tempfile.workspace = true

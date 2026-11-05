@@ -263,6 +263,7 @@ dependencies = [
  "dx-sandbox",
  "dx-security",
  "dx-seiva",
+ "dx-tool",
  "predicates",
  "serde_json",
  "sha2",
@@ -368,6 +369,16 @@ name = "dx-seiva"
 version = "0.0.1"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "dx-tool"
+version = "0.0.1"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tempfile",
+ "toml",
 ]
 
 [[package]]

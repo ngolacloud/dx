@@ -26,6 +26,7 @@ dx-report.workspace = true
 dx-seiva.workspace = true
 dx-bench.workspace = true
 dx-env.workspace = true
+dx-tool.workspace = true
 toml = "0.8"
 anyhow.workspace = true
 camino.workspace = true

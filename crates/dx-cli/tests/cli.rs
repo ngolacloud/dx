@@ -151,6 +151,30 @@ fn environment_verify_without_file_errors() {
 }
 
 #[test]
+fn tool_run_without_install_refuses_no_fallback() {
+    let tmp = tempfile::tempdir().unwrap();
+    seed_plain(tmp.path());
+    dx().current_dir(tmp.path())
+        .args(["tool", "run", "mytool"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "no silent fallback to a system binary",
+        ));
+}
+
+#[test]
+fn tool_list_empty_when_none_pinned() {
+    let tmp = tempfile::tempdir().unwrap();
+    seed_plain(tmp.path());
+    dx().current_dir(tmp.path())
+        .args(["tool", "list"])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("no tools pinned"));
+}
+
+#[test]
 fn update_without_lockfile_errors() {
     let tmp = tempfile::tempdir().unwrap();
     seed_plain(tmp.path());

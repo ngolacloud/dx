@@ -19,6 +19,7 @@ mod seivacmd;
 mod stage;
 mod suspect;
 mod testcmd;
+mod toolcmd;
 mod updatecmd;
 
 use std::process::{Command, ExitCode};
@@ -244,6 +245,11 @@ enum Commands {
         #[command(subcommand)]
         what: envcmd::EnvAction,
     },
+    /// Project-pinned developer tools (install/run/list).
+    Tool {
+        #[command(subcommand)]
+        what: toolcmd::ToolAction,
+    },
 }
 
 #[derive(Subcommand)]
@@ -432,6 +438,7 @@ fn run(cmd: Commands) -> Result<ExitCode> {
             ReleaseCmd::Prepare => releasecmd::cmd_release_prepare(),
         },
         Commands::Environment { what } => envcmd::run(&what),
+        Commands::Tool { what } => toolcmd::run(what),
     }
 }
 

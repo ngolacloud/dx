@@ -33,6 +33,7 @@ e torna cada alteração recuperável. Ver [ADR-0015](docs/adr/0015-posicionamen
 | **`dx why`/`dx explain`**: porque está este crate/feature/duplicado no grafo (Cargo tree) | **Implementado** |
 | **`dx update --plan/--security/--apply`**: corrigir vulnerabilidade transitiva com alteração mínima, validada e reversível | **Implementado + testado** |
 | **`dx environment capture/verify`**: registo reproduzível do ambiente de build (toolchain/tools/segurança/lockfile) + detecção de drift | **Implementado + testado** |
+| **`dx tool install/run/list`**: ferramentas fixadas por projecto, com proveniência (sha256), anti-tamper, sem fallback, `run --isolated` | **Implementado + testado** |
 | Adaptador Seiva: `dx new --template seiva` + `dx add seiva-console-admin` (integração declarativa por âncoras) | **Implementado + testado** |
 | `dx bench` (mock registry; resolução vs gate; cache frio/quente; overhead ≤10% em quente) | **Implementado + testado** |
 | `fetch`/`update`/`release prepare` | **Planeado** — stub honesto (exit 3) |
