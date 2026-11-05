@@ -18,6 +18,7 @@ mod seivacmd;
 mod stage;
 mod suspect;
 mod testcmd;
+mod updatecmd;
 
 use std::process::{Command, ExitCode};
 
@@ -202,8 +203,26 @@ enum Commands {
     Audit,
     /// Diagnose the environment.
     Doctor,
-    /// Update dependencies (queries a new universe).
-    Update { name: Option<String> },
+    /// Update dependencies: explain, security-fix, apply (with recovery).
+    Update {
+        /// Restrict the update to one package (minimal change).
+        name: Option<String>,
+        /// Show what would change, without touching the lockfile.
+        #[arg(long)]
+        plan: bool,
+        /// Report which advisories the update clears / that remain.
+        #[arg(long)]
+        security: bool,
+        /// Apply the update, validate with the gate, restore on failure.
+        #[arg(long)]
+        apply: bool,
+        /// With --apply, also run `cargo test` as validation.
+        #[arg(long)]
+        test: bool,
+        /// Compute the update without network (Cargo cache only).
+        #[arg(long)]
+        offline: bool,
+    },
     /// Verify the integrity of the locked graph (without compiling).
     Fetch {
         /// Require an existing Cargo.lock (fails if absent).
@@ -387,11 +406,14 @@ fn run(cmd: Commands) -> Result<ExitCode> {
             security::cmd_audit(&root)
         }
         Commands::Doctor => security::cmd_doctor(),
-        Commands::Update { .. } => not_yet(
-            "update",
-            2,
-            "update with security re-evaluation of the new universe",
-        ),
+        Commands::Update {
+            name,
+            plan,
+            security,
+            apply,
+            test,
+            offline,
+        } => updatecmd::cmd_update(name.as_deref(), plan, security, apply, offline, test),
         Commands::Fetch {
             locked,
             extract_check,
@@ -404,15 +426,6 @@ fn run(cmd: Commands) -> Result<ExitCode> {
             ReleaseCmd::Prepare => releasecmd::cmd_release_prepare(),
         },
     }
-}
-
-/// Mensagem honesta para comandos ainda não implementados.
-fn not_yet(name: &str, increment: u8, what: &str) -> Result<ExitCode> {
-    eprintln!("`dx {name}` is not implemented yet (planned for increment {increment}): {what}.");
-    eprintln!(
-        "Meanwhile, invoking Cargo directly works but BYPASSES the DX gate (see docs/security.md)."
-    );
-    Ok(ExitCode::from(3))
 }
 
 // ---------------------------------------------------------------------------

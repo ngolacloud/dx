@@ -31,6 +31,7 @@ e torna cada alteração recuperável. Ver [ADR-0015](docs/adr/0015-posicionamen
 | `dx test --suite` configurável + relatórios (terminal/JSON/JUnit/HTML) + thresholds de carga | **Implementado + testado** |
 | **`dx add --plan`**: impacto antes de aterrar (grafo, build.rs/proc-macro/nativo, MSRV, segurança, cache-vs-novo) | **Implementado + testado** |
 | **`dx why`/`dx explain`**: porque está este crate/feature/duplicado no grafo (Cargo tree) | **Implementado** |
+| **`dx update --plan/--security/--apply`**: corrigir vulnerabilidade transitiva com alteração mínima, validada e reversível | **Implementado + testado** |
 | Adaptador Seiva: `dx new --template seiva` + `dx add seiva-console-admin` (integração declarativa por âncoras) | **Implementado + testado** |
 | `dx bench` (mock registry; resolução vs gate; cache frio/quente; overhead ≤10% em quente) | **Implementado + testado** |
 | `fetch`/`update`/`release prepare` | **Planeado** — stub honesto (exit 3) |

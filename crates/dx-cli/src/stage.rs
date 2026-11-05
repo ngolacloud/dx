@@ -44,6 +44,70 @@ fn self_contained(toml: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Stage a copy of the project and run `cargo update [-p pkg]` to compute the
+/// UPDATED graph, without touching the real lockfile, without compiling.
+/// `pkg` restricts the update to one package (minimal change).
+pub fn resolve_update(
+    project_root: &Utf8Path,
+    manifest_toml: &str,
+    pkg: Option<&str>,
+    offline: bool,
+) -> Staging {
+    if let Err(reason) = self_contained(manifest_toml) {
+        return Staging::NotApplicable { reason };
+    }
+    let existing_lock = project_root.join("Cargo.lock");
+    if !existing_lock.exists() {
+        return Staging::ResolveFailed {
+            reason: "no Cargo.lock to update (run `dx add`/resolve first)".into(),
+        };
+    }
+    let dir = match TempDir::new() {
+        Ok(d) => d,
+        Err(e) => {
+            return Staging::ResolveFailed {
+                reason: format!("could not create staging: {e}"),
+            }
+        }
+    };
+    let root = match Utf8Path::from_path(dir.path()) {
+        Some(p) => p.to_owned(),
+        None => {
+            return Staging::ResolveFailed {
+                reason: "non-UTF8 staging path".into(),
+            }
+        }
+    };
+    if let Err(e) = std::fs::write(root.join("Cargo.toml"), manifest_toml) {
+        return Staging::ResolveFailed {
+            reason: format!("write staging manifest: {e}"),
+        };
+    }
+    let _ = std::fs::create_dir_all(root.join("src"));
+    let _ = std::fs::write(root.join("src/lib.rs"), "");
+    let _ = std::fs::copy(&existing_lock, root.join("Cargo.lock"));
+
+    let mut cmd = Command::new("cargo");
+    cmd.arg("update")
+        .args(["--manifest-path"])
+        .arg(root.join("Cargo.toml").as_str());
+    if let Some(p) = pkg {
+        cmd.args(["-p", p]);
+    }
+    if offline {
+        cmd.arg("--offline");
+    }
+    match cmd.output() {
+        Ok(o) if o.status.success() => Staging::Resolved { _guard: dir, root },
+        Ok(o) => Staging::ResolveFailed {
+            reason: String::from_utf8_lossy(&o.stderr).trim().to_string(),
+        },
+        Err(e) => Staging::ResolveFailed {
+            reason: format!("could not invoke `cargo update`: {e}"),
+        },
+    }
+}
+
 /// Monta o staging e resolve o grafo candidato.
 /// `mutated_toml` é o Cargo.toml já com a dependência pretendida.
 pub fn resolve_candidate(project_root: &Utf8Path, mutated_toml: &str, offline: bool) -> Staging {

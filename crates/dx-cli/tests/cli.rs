@@ -122,6 +122,17 @@ fn plan_writes_nothing_and_shows_impact() {
 }
 
 #[test]
+fn update_without_lockfile_errors() {
+    let tmp = tempfile::tempdir().unwrap();
+    seed_plain(tmp.path());
+    dx().current_dir(tmp.path())
+        .args(["update", "--plan"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("no Cargo.lock"));
+}
+
+#[test]
 fn dry_run_writes_nothing() {
     let tmp = tempfile::tempdir().unwrap();
     seed_plain(tmp.path());

@@ -103,6 +103,15 @@ parcial, exit 6), sem alegar integração. Sem permissões admin; recompila com
 `dx build`. (A extensão de registry exige versão; fictícia demonstrada via
 `--path`.)
 
+### `dx update [name] [--plan] [--security] [--apply] [--test] [--offline]`
+Actualizações explicáveis e recuperáveis. `--plan` mostra as mudanças de versão
+(staging, lockfile intacto). `--security` corre o gate antes/depois e reporta os
+advisories que o update corrige e os que ficam sem correcção compatível (explica
+o bloqueio, não troca de biblioteca). `--apply` escreve o lockfile actualizado
+transaccionalmente, valida com o gate (e `--test`) e **restaura** o anterior se a
+validação falhar. `name` restringe à alteração mínima de um package.
+
 ## Planeado
 
-`dx update`. Hoje devolve exit 3 com mensagem a dizer em que incremento chega.
+`dx tool` (ferramentas fixadas por projecto) e `dx environment capture/verify`
+(pacotes offline verificáveis) — P1 restantes.
