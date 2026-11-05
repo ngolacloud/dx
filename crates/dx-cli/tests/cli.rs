@@ -122,6 +122,35 @@ fn plan_writes_nothing_and_shows_impact() {
 }
 
 #[test]
+fn environment_capture_then_verify_matches() {
+    let tmp = tempfile::tempdir().unwrap();
+    seed_plain(tmp.path());
+    dx().current_dir(tmp.path())
+        .args(["environment", "capture"])
+        .assert()
+        .success();
+    assert!(tmp.path().join("dx-environment.json").exists());
+    dx().current_dir(tmp.path())
+        .args(["environment", "verify"])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("matches the recorded one"));
+}
+
+#[test]
+fn environment_verify_without_file_errors() {
+    let tmp = tempfile::tempdir().unwrap();
+    seed_plain(tmp.path());
+    dx().current_dir(tmp.path())
+        .args(["environment", "verify"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "run `dx environment capture` first",
+        ));
+}
+
+#[test]
 fn update_without_lockfile_errors() {
     let tmp = tempfile::tempdir().unwrap();
     seed_plain(tmp.path());

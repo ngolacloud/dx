@@ -111,7 +111,15 @@ o bloqueio, não troca de biblioteca). `--apply` escreve o lockfile actualizado
 transaccionalmente, valida com o gate (e `--test`) e **restaura** o anterior se a
 validação falhar. `name` restringe à alteração mínima de um package.
 
+### `dx environment capture|verify`
+`capture` regista o ambiente de build em `dx-environment.json` (toolchain,
+target, ferramentas auxiliares, flags, evidência de segurança e sha256 do
+Cargo.lock) — para commitar e partilhar em CI/equipas. `verify` recomputa o
+ambiente do host e reporta **drift** (crítico falha com exit 4; snapshot da
+advisory-db é informacional). Não é reprodutibilidade byte-a-byte — é registo +
+detecção de drift.
+
 ## Planeado
 
-`dx tool` (ferramentas fixadas por projecto) e `dx environment capture/verify`
-(pacotes offline verificáveis) — P1 restantes.
+`dx tool` (ferramentas fixadas por projecto, proveniência/isolamento) — P1
+restante.

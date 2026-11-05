@@ -255,6 +255,7 @@ dependencies = [
  "dx-bench",
  "dx-build",
  "dx-core",
+ "dx-env",
  "dx-integrity",
  "dx-manifest",
  "dx-release",
@@ -275,6 +276,17 @@ version = "0.0.1"
 dependencies = [
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "dx-env"
+version = "0.0.1"
+dependencies = [
+ "camino",
+ "dx-integrity",
+ "dx-security",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

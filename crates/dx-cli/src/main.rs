@@ -10,6 +10,7 @@
 
 mod benchcmd;
 mod buildcmd;
+mod envcmd;
 mod plancmd;
 mod releasecmd;
 mod scaffold;
@@ -238,6 +239,11 @@ enum Commands {
         #[command(subcommand)]
         what: ReleaseCmd,
     },
+    /// Record/verify the reproducible build environment.
+    Environment {
+        #[command(subcommand)]
+        what: envcmd::EnvAction,
+    },
 }
 
 #[derive(Subcommand)]
@@ -425,6 +431,7 @@ fn run(cmd: Commands) -> Result<ExitCode> {
         Commands::Release { what } => match what {
             ReleaseCmd::Prepare => releasecmd::cmd_release_prepare(),
         },
+        Commands::Environment { what } => envcmd::run(&what),
     }
 }
 
