@@ -1,15 +1,17 @@
-//! `dx` — CLI fina sobre bibliotecas testáveis (dx-core, dx-manifest,
-//! dx-security, dx-integrity, dx-sandbox, dx-build, dx-release, dx-report,
-//! dx-seiva).
+//! `dx` — thin CLI over testable libraries (dx-core, dx-manifest, dx-security,
+//! dx-integrity, dx-sandbox, dx-build, dx-release, dx-report, dx-seiva, dx-env,
+//! dx-tool).
 //!
-//! Comandos implementados: `new`/`init` (inc. `--template seiva`), `add`
-//! (idempotente + gate de segurança + adaptador Seiva), `remove`, `build`
-//! (`--profile`/`--isolated`/`--measure`), `bench-build`, `pgo`, `test`
-//! (suites configuráveis + relatórios), `audit`, `doctor`, `fetch`,
-//! `release prepare`. `update` fica como stub honesto (exit 3).
+//! Commands: `new`/`init` (incl. `--template seiva`), `add` (idempotent + impact
+//! `--plan` + security gate + Seiva adapter), `remove`, `why`/`explain`,
+//! `update` (plan/security/apply), `build` (`--profile`/`--isolated`/
+//! `--measure`), `bench-build`, `bench`, `pgo`, `test` (configurable suites +
+//! reports), `audit`, `doctor`, `fetch`, `release prepare`, `environment`,
+//! `tool`, `bundle`.
 
 mod benchcmd;
 mod buildcmd;
+mod bundlecmd;
 mod envcmd;
 mod plancmd;
 mod releasecmd;
@@ -250,6 +252,11 @@ enum Commands {
         #[command(subcommand)]
         what: toolcmd::ToolAction,
     },
+    /// Export/verify an offline, verifiable build bundle.
+    Bundle {
+        #[command(subcommand)]
+        what: bundlecmd::BundleAction,
+    },
 }
 
 #[derive(Subcommand)]
@@ -439,6 +446,7 @@ fn run(cmd: Commands) -> Result<ExitCode> {
         },
         Commands::Environment { what } => envcmd::run(&what),
         Commands::Tool { what } => toolcmd::run(what),
+        Commands::Bundle { what } => bundlecmd::run(what),
     }
 }
 

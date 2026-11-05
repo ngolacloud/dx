@@ -129,7 +129,13 @@ do sistema; `--isolated` corre sob o sandbox (rede off, ambiente sem segredos).
 `list` mostra o estado/proveniência. Pré-compilados (binstall) são caminho
 futuro; o default compila a versão fixada.
 
+### `dx bundle export|verify`
+`export [--out <dir>]` produz um pacote offline verificável: Cargo.toml/lock,
+`environment.json`, `sbom.cdx.json`, `vendor/`+`cargo-config.toml` (via
+`cargo vendor`) e `bundle.json` (sha256 por ficheiro + hash agregado do
+`vendor/`). `verify <dir>` recomputa os hashes e falha (exit 4) em qualquer
+divergência. Pacote verificável, não reprodutibilidade byte-a-byte.
+
 ## Planeado
 
-Pré-compilados verificados (`cargo-binstall` sob política) e `dx bundle export`
-(pacote offline com ambiente+evidências) — trabalho futuro.
+Pré-compilados verificados (`cargo-binstall` sob política) — trabalho futuro.

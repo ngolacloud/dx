@@ -164,6 +164,27 @@ fn tool_run_without_install_refuses_no_fallback() {
 }
 
 #[test]
+fn bundle_verify_without_manifest_errors() {
+    let tmp = tempfile::tempdir().unwrap();
+    dx().current_dir(tmp.path())
+        .args(["bundle", "verify", "."])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("is this a dx bundle"));
+}
+
+#[test]
+fn bundle_export_without_lockfile_errors() {
+    let tmp = tempfile::tempdir().unwrap();
+    seed_plain(tmp.path());
+    dx().current_dir(tmp.path())
+        .args(["bundle", "export"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("needs a locked graph"));
+}
+
+#[test]
 fn tool_list_empty_when_none_pinned() {
     let tmp = tempfile::tempdir().unwrap();
     seed_plain(tmp.path());
