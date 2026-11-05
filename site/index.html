@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DX — explainable, security-first Rust dependency management</title>
+<meta name="description" content="DX is a Cargo-compatible Rust tool for explainable dependency changes, security before execution, and predictable recovery.">
+<style>
+  :root{
+    --bg:#ffffff; --fg:#1a1d24; --muted:#5b6472; --line:#e6e8ec;
+    --accent:#2f6df6; --accent-2:#7a3ff2; --code-bg:#f5f6f8; --card:#fafbfc;
+    --ok:#0a7d33; --warn:#9a6a00;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0e1117; --fg:#e6e9ef; --muted:#9aa4b2; --line:#232833;
+      --accent:#6ea8ff; --accent-2:#b18cff; --code-bg:#151a22; --card:#141922; --ok:#5fd37f; --warn:#e0b355; }
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .layout{display:grid;grid-template-columns:260px 1fr;max-width:1180px;margin:0 auto}
+  nav.side{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;
+    border-right:1px solid var(--line);padding:1.5rem 1rem 3rem}
+  nav.side .brand{font-weight:700;font-size:1.25rem;letter-spacing:.5px}
+  nav.side .brand span{background:linear-gradient(90deg,var(--accent),var(--accent-2));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  nav.side .tag{color:var(--muted);font-size:.8rem;margin:.2rem 0 1.2rem}
+  nav.side a{display:block;color:var(--muted);padding:.28rem 0;font-size:.92rem}
+  nav.side a:hover{color:var(--fg);text-decoration:none}
+  nav.side h4{margin:1.2rem 0 .3rem;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--fg);opacity:.6}
+  main{padding:2.2rem 2.4rem 5rem;min-width:0}
+  .hero h1{font-size:2.4rem;line-height:1.1;margin:.2rem 0 .6rem}
+  .hero p.lead{font-size:1.2rem;color:var(--muted);margin:0 0 1.4rem;max-width:46rem}
+  .badges{display:flex;gap:.5rem;flex-wrap:wrap;margin:.6rem 0 1.4rem}
+  .badge{border:1px solid var(--line);border-radius:999px;padding:.15rem .7rem;font-size:.8rem;color:var(--muted)}
+  h2{margin:2.6rem 0 .8rem;font-size:1.5rem;padding-top:.4rem;border-top:1px solid var(--line)}
+  h3{margin:1.6rem 0 .4rem;font-size:1.1rem}
+  p{max-width:48rem}
+  pre{background:var(--code-bg);border:1px solid var(--line);border-radius:10px;
+    padding:1rem 1.1rem;overflow:auto;font-size:.88rem;line-height:1.5}
+  code{background:var(--code-bg);border-radius:5px;padding:.1rem .35rem;font-size:.88em}
+  pre code{background:none;padding:0}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:.9rem;margin:1rem 0}
+  .card{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:1rem 1.1rem}
+  .card h3{margin:.1rem 0 .3rem;font-size:1rem}
+  .card p{color:var(--muted);font-size:.9rem;margin:0}
+  table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.92rem;display:block;overflow-x:auto}
+  th,td{border:1px solid var(--line);padding:.5rem .7rem;text-align:left;vertical-align:top}
+  th{background:var(--card)}
+  .k{color:var(--accent);font-weight:600}
+  .note{border-left:3px solid var(--accent);background:var(--card);padding:.7rem 1rem;border-radius:0 8px 8px 0;margin:1rem 0;color:var(--muted)}
+  .note.warn{border-left-color:var(--warn)}
+  footer{color:var(--muted);font-size:.85rem;border-top:1px solid var(--line);margin-top:3rem;padding-top:1rem}
+  .pill{font-size:.72rem;border:1px solid var(--line);border-radius:6px;padding:.05rem .4rem;color:var(--muted)}
+  @media (max-width:860px){
+    .layout{grid-template-columns:1fr}
+    nav.side{position:static;height:auto;border-right:none;border-bottom:1px solid var(--line)}
+    main{padding:1.4rem 1.1rem 4rem}
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="side">
+    <div class="brand"><span>DX</span></div>
+    <div class="tag">Rust dependency management</div>
+    <a href="#why">Why DX</a>
+    <a href="#install">Install</a>
+    <a href="#quickstart">Quickstart</a>
+    <h4>Core ideas</h4>
+    <a href="#explainable">Explainable changes</a>
+    <a href="#security">Security before execution</a>
+    <a href="#recovery">Predictable recovery</a>
+    <h4>Reference</h4>
+    <a href="#r-deps">Dependencies</a>
+    <a href="#r-update">Updates</a>
+    <a href="#r-build">Build &amp; test</a>
+    <a href="#r-release">Release &amp; env</a>
+    <a href="#r-tools">Tools &amp; bundles</a>
+    <h4>More</h4>
+    <a href="#honest">Honest limits</a>
+    <a href="https://github.com/ngolacloud/dx">GitHub ↗</a>
+  </nav>
+
+  <main>
+    <section class="hero" id="top">
+      <h1>Dependency management that <em>explains itself</em>.</h1>
+      <p class="lead">DX is a Cargo-compatible tool for Rust projects: it shows
+      what a change introduces <strong>before</strong> it lands, runs security
+      <strong>before</strong> any build script executes, and makes every change
+      recoverable.</p>
+      <div class="badges">
+        <span class="badge">Cargo-compatible</span>
+        <span class="badge">security-first</span>
+        <span class="badge">explainable</span>
+        <span class="badge">recoverable</span>
+        <span class="badge">MIT OR Apache-2.0</span>
+      </div>
+      <pre><code>$ dx add serde@1 --features derive --plan
+NEW packages in the graph (7): serde (direct) + 6 transitive
+EXECUTION surfaces during the build: build.rs in 4 crates; proc-macros: serde_derive
+MSRV required by new packages: &gt;= 1.71
+Security (candidate graph): no known findings · Decision: APPROVED
+(plan: nothing was written.)</code></pre>
+      <div class="note">DX reuses Cargo and rustc for resolution and compilation.
+      It does not replace them — it adds a layer of explanation, security and
+      recovery on top. The executable is <code>dx</code>; the published crate is
+      <code>dx-cli</code>.</div>
+    </section>
+
+    <h2 id="why">Why DX</h2>
+    <p>Cargo is already a solid package manager. The gap DX targets is the
+    <em>fragmentation of experience and guarantees</em> across many good tools.
+    DX composes them and answers three questions a change should answer:</p>
+    <div class="cards">
+      <div class="card"><h3>What am I introducing?</h3><p>New transitive crates,
+        activated features, MSRV bumps, and every <code>build.rs</code>/proc-macro
+        that will execute during the build.</p></div>
+      <div class="card"><h3>Is it safe to build?</h3><p>Advisories, licenses and
+        sources are evaluated on the candidate graph <em>before</em> anything is
+        compiled or landed.</p></div>
+      <div class="card"><h3>Can I undo it?</h3><p>Journaled, atomic changes and a
+        validate-or-restore update flow: a failed step never leaves a broken
+        project.</p></div>
+    </div>
+
+    <h2 id="install">Install</h2>
+    <p>DX needs a Rust toolchain. Optional scanners <code>cargo-audit</code> and
+    <code>cargo-deny</code> enable the full security gate.</p>
+    <pre><code># From source (clone the repo)
+$ git clone https://github.com/ngolacloud/dx &amp;&amp; cd dx
+$ cargo install --path crates/dx-cli      # installs the `dx` binary
+
+# Recommended scanners for the security gate
+$ cargo install cargo-audit cargo-deny</code></pre>
+    <div class="note warn">Not yet published to crates.io. The <code>dx</code>
+    crate name is taken; the intended published name is <code>dx-cli</code>.</div>
+
+    <h2 id="quickstart">Quickstart</h2>
+    <pre><code>$ dx new my-api --bin
+$ cd my-api
+$ dx add serde@1 --features derive --plan   # preview impact, nothing written
+$ dx add serde@1 --features derive          # resolve → gate → land if approved
+$ dx why serde_derive                       # who pulls this crate?
+$ dx update --security                       # which advisories would an update clear?
+$ dx test --suite unit --format junit --out report.xml
+$ dx build --release</code></pre>
+
+    <h2 id="explainable">Explainable changes</h2>
+    <p><span class="k">dx add --plan</span> resolves the candidate graph in an
+    isolated staging area (via <code>cargo generate-lockfile</code>, without
+    running <code>build.rs</code>) and reports the impact: new direct/transitive
+    packages, execution surfaces, MSRV, the security verdict, and cache-vs-new
+    downloads — without touching your manifest.</p>
+    <p><span class="k">dx why &lt;crate&gt;</span> and
+    <span class="k">dx explain --duplicates|--feature</span> answer graph
+    questions, confirmed by Cargo's own resolution.</p>
+
+    <h2 id="security">Security before execution</h2>
+    <p>The gate runs on <span class="k">dx add</span> and
+    <span class="k">dx update</span>: resolve the candidate graph without running
+    code, evaluate it with <code>cargo-audit</code> (advisories) and
+    <code>cargo-deny</code> (licenses, sources, bans), and only then land it.</p>
+    <table>
+      <tr><th>Layer</th><th>Question</th></tr>
+      <tr><td>Integrity</td><td>Do the bytes match the pinned artifact? (<code>dx fetch</code>)</td></tr>
+      <tr><td>Source</td><td>Is this registry/repository allowed? (no silent fallback)</td></tr>
+      <tr><td>Vulnerabilities</td><td>Any applicable advisories? (CVE or not)</td></tr>
+      <tr><td>Execution</td><td>What runs during the build? (<code>build.rs</code>, proc-macros)</td></tr>
+      <tr><td>Isolation</td><td>What can it reach? (<code>dx build --isolated</code>: network off, env scrubbed)</td></tr>
+    </table>
+    <div class="note">Decisions are cached and keyed by graph + policy + advisory
+    snapshot + scanner. A new advisory invalidates an old verdict even if the
+    downloaded bytes are intact. An expired advisory base blocks <em>use</em>
+    (pending), not the download. Absence of findings is not proof of benignity.</div>
+
+    <h2 id="recovery">Predictable recovery</h2>
+    <p>Mutations produce a plan first (<code>--dry-run</code>), write atomically
+    with a journal (crash-safe), and serialize concurrent runs with a workspace
+    lock. <span class="k">dx update --apply</span> validates with the gate (and
+    <code>--test</code>) and <strong>restores</strong> the previous lockfile if
+    validation fails.</p>
+
+    <h2 id="r-deps">Reference — dependencies &amp; graph</h2>
+    <table>
+      <tr><th>Command</th><th>What it does</th></tr>
+      <tr><td><code>dx new</code> / <code>dx init</code></td><td>Scaffold a project (<code>--lib</code>/<code>--bin</code>/<code>--template seiva</code>).</td></tr>
+      <tr><td><code>dx add &lt;spec&gt; [--plan]</code></td><td>Add a dependency idempotently; <code>--plan</code> shows impact without landing.</td></tr>
+      <tr><td><code>dx remove &lt;name&gt;</code></td><td>Remove a dependency (idempotent).</td></tr>
+      <tr><td><code>dx why &lt;crate&gt;</code></td><td>Inverse dependency tree: who pulls it.</td></tr>
+      <tr><td><code>dx explain --duplicates|--feature</code></td><td>Duplicate versions; who activates a feature.</td></tr>
+    </table>
+
+    <h2 id="r-update">Reference — updates &amp; security</h2>
+    <table>
+      <tr><th>Command</th><th>What it does</th></tr>
+      <tr><td><code>dx update --plan</code></td><td>Show version changes (staging; lockfile untouched).</td></tr>
+      <tr><td><code>dx update --security</code></td><td>Advisories the update clears / that remain without a compatible fix.</td></tr>
+      <tr><td><code>dx update --apply [--test]</code></td><td>Apply, validate with the gate (and tests), restore on failure.</td></tr>
+      <tr><td><code>dx audit</code> / <code>dx doctor</code></td><td>Run the gate over the lockfile; diagnose toolchain/base/policy.</td></tr>
+      <tr><td><code>dx fetch [--extract-check]</code></td><td>Verify integrity (checksum vs lockfile) + safe extraction.</td></tr>
+    </table>
+
+    <h2 id="r-build">Reference — build &amp; test</h2>
+    <table>
+      <tr><th>Command</th><th>What it does</th></tr>
+      <tr><td><code>dx build --profile &lt;p&gt;</code></td><td>LLVM profiles: dev / release / throughput / size (never fat-LTO by default).</td></tr>
+      <tr><td><code>dx build --isolated</code></td><td>Build with real isolation: network off, env scrubbed, resource limits.</td></tr>
+      <tr><td><code>dx bench-build</code> / <code>dx pgo</code> / <code>dx bench</code></td><td>Measure clean builds; profile-guided optimization; dependency-pipeline benchmark.</td></tr>
+      <tr><td><code>dx test --suite &lt;s&gt; --format json|junit|html</code></td><td>Configurable suites; versioned reports (secrets scrubbed, HTML escaped).</td></tr>
+    </table>
+
+    <h2 id="r-release">Reference — release &amp; environment</h2>
+    <table>
+      <tr><th>Command</th><th>What it does</th></tr>
+      <tr><td><code>dx release prepare</code></td><td>Validate (fmt/clippy/test/build/security) + SBOM + provenance + topo publish order. Prepare ≠ publish.</td></tr>
+      <tr><td><code>dx environment capture|verify</code></td><td>Record the build environment; detect drift.</td></tr>
+    </table>
+
+    <h2 id="r-tools">Reference — tools &amp; bundles</h2>
+    <table>
+      <tr><th>Command</th><th>What it does</th></tr>
+      <tr><td><code>dx tool install|run|list</code></td><td>Project-pinned tools with provenance (sha256), anti-tamper, no system fallback; <code>run --isolated</code>.</td></tr>
+      <tr><td><code>dx bundle export|verify</code></td><td>Offline verifiable bundle: environment + SBOM + vendored sources + hashes.</td></tr>
+    </table>
+
+    <h2 id="honest">Honest limits</h2>
+    <ul>
+      <li>DX is a layer over Cargo; invoking <code>cargo</code> directly bypasses
+        the DX gate — by design. CI and a controlled build environment enforce
+        policy.</li>
+      <li>Impact analysis and the pre-landing gate cover self-contained
+        manifests; workspace/path shapes land as <em>unverified</em> (run
+        <code>dx audit</code>).</li>
+      <li>Build isolation enforces network/env/limits; <strong>filesystem</strong>
+        isolation is not enforced yet and is reported as such.</li>
+      <li>Bundles are verifiable, not byte-for-byte reproducible.</li>
+      <li>No <em>“zero CVEs”</em> claims: findings are relative to a dated
+        advisory snapshot.</li>
+    </ul>
+
+    <footer>
+      DX — part of the N'GolaCloud ecosystem. Dual-licensed MIT OR Apache-2.0.
+      Source &amp; issues: <a href="https://github.com/ngolacloud/dx">github.com/ngolacloud/dx</a>.
+    </footer>
+  </main>
+</div>
+</body>
+</html>
