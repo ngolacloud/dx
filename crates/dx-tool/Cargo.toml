@@ -1,5 +1,5 @@
 [package]
-name = "dx-tool"
+name = "ngoladx-tool"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -7,6 +7,9 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 description = "DX — project-pinned developer tools: manifest (dx-tools.toml), provenance lock, and resolution model."
+
+[lib]
+name = "dx_tool"
 
 [dependencies]
 serde.workspace = true

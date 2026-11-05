@@ -8,12 +8,14 @@ de Rust**: Cargo e rustc continuam a resolver e compilar. O DX responde a
 e torna cada alteração recuperável. Ver [ADR-0015](docs/adr/0015-posicionamento-e-plano-de-impacto.md).
 
 - **Executável:** `dx`
-- **Crate de publicação:** `dx-cli` (o nome `dx` está ocupado em crates.io — ver
-  [ADR-0003](docs/adr/0003-nome-publicado-vs-executavel.md))
+- **Instalação:** `cargo install ngoladx-cli` (binário `dx`). Os 13 crates
+  publicam-se sob o prefixo `ngoladx-` porque `dx`/`dx-cli`/`dx-core` estão
+  ocupados no crates.io; os nomes de importação em Rust continuam `dx_*` —
+  ver [ADR-0003](docs/adr/0003-nome-publicado-vs-executavel.md).
 - **Opcional:** não exige Seiva, DORM, Kubernetes nem Delonix. O Seiva é um
   consumidor opcional; o DX é opcional para qualquer projecto.
 - **Licença:** MIT OR Apache-2.0 ([LICENSE-MIT](LICENSE-MIT), [LICENSE-APACHE](LICENSE-APACHE)).
-- **Release:** estado consolidado em [RELEASE.md](RELEASE.md) · [CHANGELOG.md](CHANGELOG.md) · CI em `.github/workflows/ci.yml`. Nada publicado (publicar exige instrução explícita).
+- **Release:** estado consolidado em [RELEASE.md](RELEASE.md) · [CHANGELOG.md](CHANGELOG.md) · CI em `.github/workflows/ci.yml`. Publicado no crates.io sob `ngoladx-*`.
 - **Output em inglês:** todas as mensagens/logs/`--help`/erros do DX são em inglês.
 
 ## Estado (2026-11-05)

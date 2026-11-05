@@ -4,13 +4,13 @@ All notable changes to DX are documented here. DX follows the positioning in
 [ADR-0015](docs/adr/0015-posicionamento-e-plano-de-impacto.md): explainable
 changes, security before execution, predictable recovery — Cargo-compatible.
 
-## [0.0.1] — unreleased (consolidated)
+## [0.0.1] — 2026-11-05 (consolidated)
 
-First consolidated milestone. Published crate name is `dx-cli`; the executable
-is `dx` (the `dx` crate name is taken on crates.io — see
-[ADR-0003](docs/adr/0003-nome-publicado-vs-executavel.md)). Nothing is published
-yet; `dx release prepare` makes artifacts for review and publishing requires an
-explicit instruction.
+First consolidated milestone, published to crates.io under the `ngoladx-*`
+prefix (the `dx`/`dx-cli`/`dx-core` names are taken by unrelated crates — see
+[ADR-0003](docs/adr/0003-nome-publicado-vs-executavel.md)). The executable stays
+`dx` (`[[bin]] name = "dx"`) and Rust import names stay `dx_*` (`[lib] name`).
+Install with `cargo install ngoladx-cli`.
 
 ### Dependency management (Cargo-compatible)
 - `dx new`/`init` (incl. `--template seiva`), `dx add` (idempotent, `--dry-run`,

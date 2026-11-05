@@ -29,18 +29,18 @@ authors = ["Walter Angolar <angolarti@gmail.com>"]
 # mas o package de publicação será `dx-cli` (ou outro nome a confirmar).
 
 [workspace.dependencies]
-dx-core = { path = "crates/dx-core", version = "0.0.1" }
-dx-manifest = { path = "crates/dx-manifest", version = "0.0.1" }
-dx-security = { path = "crates/dx-security", version = "0.0.1" }
-dx-integrity = { path = "crates/dx-integrity", version = "0.0.1" }
-dx-sandbox = { path = "crates/dx-sandbox", version = "0.0.1" }
-dx-build = { path = "crates/dx-build", version = "0.0.1" }
-dx-release = { path = "crates/dx-release", version = "0.0.1" }
-dx-report = { path = "crates/dx-report", version = "0.0.1" }
-dx-seiva = { path = "crates/dx-seiva", version = "0.0.1" }
-dx-bench = { path = "crates/dx-bench", version = "0.0.1" }
-dx-env = { path = "crates/dx-env", version = "0.0.1" }
-dx-tool = { path = "crates/dx-tool", version = "0.0.1" }
+dx-core = { package = "ngoladx-core", path = "crates/dx-core", version = "0.0.1" }
+dx-manifest = { package = "ngoladx-manifest", path = "crates/dx-manifest", version = "0.0.1" }
+dx-security = { package = "ngoladx-security", path = "crates/dx-security", version = "0.0.1" }
+dx-integrity = { package = "ngoladx-integrity", path = "crates/dx-integrity", version = "0.0.1" }
+dx-sandbox = { package = "ngoladx-sandbox", path = "crates/dx-sandbox", version = "0.0.1" }
+dx-build = { package = "ngoladx-build", path = "crates/dx-build", version = "0.0.1" }
+dx-release = { package = "ngoladx-release", path = "crates/dx-release", version = "0.0.1" }
+dx-report = { package = "ngoladx-report", path = "crates/dx-report", version = "0.0.1" }
+dx-seiva = { package = "ngoladx-seiva", path = "crates/dx-seiva", version = "0.0.1" }
+dx-bench = { package = "ngoladx-bench", path = "crates/dx-bench", version = "0.0.1" }
+dx-env = { package = "ngoladx-env", path = "crates/dx-env", version = "0.0.1" }
+dx-tool = { package = "ngoladx-tool", path = "crates/dx-tool", version = "0.0.1" }
 sha2 = "0.10"
 
 anyhow = "1"

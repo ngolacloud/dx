@@ -1,5 +1,5 @@
 [package]
-name = "dx-bench"
+name = "ngoladx-bench"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -7,6 +7,9 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 description = "DX — harness de benchmarks: estatísticas (p50/p95) e geração de mock-workspace determinista para medir resolução vs gate."
+
+[lib]
+name = "dx_bench"
 
 [dependencies]
 camino.workspace = true

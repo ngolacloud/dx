@@ -1,5 +1,5 @@
 [package]
-name = "dx-sandbox"
+name = "ngoladx-sandbox"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -7,6 +7,9 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 description = "DX — isolamento REAL de execução (netns via unshare, rlimits, ambiente sem segredos) com relatório honesto do que é imposto."
+
+[lib]
+name = "dx_sandbox"
 
 [dependencies]
 camino.workspace = true

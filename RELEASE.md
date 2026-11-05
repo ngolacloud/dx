@@ -6,8 +6,9 @@ Publishing requires an explicit instruction (ADR-0011).
 
 ## Identity
 
-- Executable: `dx`. Published crate: `dx-cli` (the `dx` name is taken on
-  crates.io — [ADR-0003](docs/adr/0003-nome-publicado-vs-executavel.md)).
+- Executable: `dx`. Published crates: `ngoladx-*` (the `dx`/`dx-cli`/`dx-core`
+  names are taken on crates.io — [ADR-0003](docs/adr/0003-nome-publicado-vs-executavel.md)).
+  Rust import names stay `dx_*` via `[lib] name`. Install: `cargo install ngoladx-cli`.
 - Version line: `0.0.1` (workspace). Dual-licensed **MIT OR Apache-2.0**
   (`LICENSE-MIT`, `LICENSE-APACHE`).
 - Toolchain: Rust 1.96.0 / LLVM 22; MSRV declared `1.82`.
@@ -29,7 +30,7 @@ Artifacts in `target/dx-release/`:
 - `sbom.cdx.json` — CycloneDX SBOM, 109 components.
 - `provenance.json` — rustc 1.96.0, host x86_64-unknown-linux-gnu, git commit,
   binary `dx` (~3.79 MiB) + sha256.
-- `publish-order.txt` — topological order (13 crates, `dx-cli` last).
+- `publish-order.txt` — topological order (13 crates, `ngoladx-cli` last).
 
 ## CI
 
@@ -42,21 +43,29 @@ Public repository: <https://github.com/ngolacloud/dx> (branch `main`).
 Docs on GitHub Pages: <https://ngolacloud.github.io/dx/>. CI + Pages workflows
 run on push.
 
-## crates.io (BLOCKED on a naming decision)
+## crates.io (published under `ngoladx-*`)
 
 Live check (2026-11-05): `dx`, `dx-cli` and `dx-core` are all **taken** by
-unrelated crates. The 13-crate workspace therefore needs a free prefix to
-publish. Free prefixes confirmed: `ngoladx-*`, `dxkit*`. This is a branding
-decision (claims ~13 names irreversibly), left to the owner — see
-[ADR-0003](docs/adr/0003-nome-publicado-vs-executavel.md). Until then, DX is
-installable from source:
+unrelated crates, so the 13-crate workspace publishes under the free prefix
+`ngoladx-` (owner decision, option A — [ADR-0003](docs/adr/0003-nome-publicado-vs-executavel.md)).
+Rust import names stay `dx_*` through `[lib] name`, and the executable stays
+`dx` through `[[bin]] name = "dx"`.
+
+Install from crates.io:
 
 ```console
-$ cargo install --git https://github.com/ngolacloud/dx dx-cli
+$ cargo install ngoladx-cli   # provides the `dx` binary
 ```
 
-When a prefix is chosen: rename the crate packages, `dx release prepare` with a
-fresh advisory base, then `cargo publish` per crate in `publish-order.txt` order.
+Or from source:
+
+```console
+$ cargo install --git https://github.com/ngolacloud/dx ngoladx-cli
+```
+
+Publish mechanics: `dx release prepare` with a fresh advisory base, then
+`cargo publish -p ngoladx-<crate>` per crate in `publish-order.txt` order
+(dependencies first, `ngoladx-cli` last).
 
 ## Honest remaining work (non-blocking)
 

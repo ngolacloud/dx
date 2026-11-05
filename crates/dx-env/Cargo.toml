@@ -1,5 +1,5 @@
 [package]
-name = "dx-env"
+name = "ngoladx-env"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -7,6 +7,9 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 description = "DX — reproducible build-environment record (toolchain/target/tools/flags/security/lockfile) with capture and verify."
+
+[lib]
+name = "dx_env"
 
 [dependencies]
 dx-security.workspace = true

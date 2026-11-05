@@ -1,5 +1,5 @@
 [package]
-name = "dx-report"
+name = "ngoladx-report"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -7,6 +7,9 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 description = "DX — modelo de relatório de testes e emissores (terminal, JSON versionado, JUnit, HTML auto-contido) com escape e remoção de segredos."
+
+[lib]
+name = "dx_report"
 
 [dependencies]
 serde.workspace = true

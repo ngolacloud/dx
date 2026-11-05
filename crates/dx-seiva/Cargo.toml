@@ -1,5 +1,5 @@
 [package]
-name = "dx-seiva"
+name = "ngoladx-seiva"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -7,6 +7,9 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 description = "DX — adaptador Seiva: protocolo declarativo de integração (âncoras) para extensões como seiva-console-admin. Nunca corre hooks do crate."
+
+[lib]
+name = "dx_seiva"
 
 [dependencies]
 serde.workspace = true

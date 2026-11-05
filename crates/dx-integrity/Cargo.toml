@@ -1,5 +1,5 @@
 [package]
-name = "dx-integrity"
+name = "ngoladx-integrity"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -7,6 +7,9 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 description = "DX — integridade de artefactos (checksum vs lockfile) e extracção segura de .crate (anti traversal/symlink/zip-bomb)."
+
+[lib]
+name = "dx_integrity"
 
 [dependencies]
 camino.workspace = true

@@ -1,5 +1,5 @@
 [package]
-name = "dx-release"
+name = "ngoladx-release"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -7,6 +7,9 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 description = "DX — preparação de release: ordem topológica de publicação, SBOM (CycloneDX) e proveniência. Prepara ≠ publica."
+
+[lib]
+name = "dx_release"
 
 [dependencies]
 dx-integrity.workspace = true
