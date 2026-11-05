@@ -47,8 +47,15 @@ Remove uma dependência; idempotente (remover o que não existe é no-op).
 Delegam no Cargo com argv estruturado (sem shell), herdando stdio e código de
 saída. **Ainda não aplicam o gate de segurança** (inc.2 liga-o antes do build).
 
+### `dx fetch [--locked] [--extract-check]`
+Verifica a integridade do grafo bloqueado **sem compilar**: checksum dos
+`.crate` em cache vs `Cargo.lock`. `--extract-check` desempacota cada um com
+salvaguardas (traversal/symlink/zip-bomb) para um temporário e descarta.
+Mismatch ou extracção insegura → BLOQUEADO (exit 4). `--locked` exige Cargo.lock.
+Packages não descarregados ficam "sem cobertura".
+
 ## Planeado
 
-`dx fetch --locked` · `dx update` · `dx release prepare` (inc.4) ·
+`dx update` · `dx release prepare` (inc.4) ·
 `dx new <plat> --template seiva` e `dx add seiva-console-admin` (inc.5).
 Hoje devolvem exit 3 com mensagem a dizer em que incremento chegam.

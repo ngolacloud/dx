@@ -4,6 +4,7 @@ members = [
     "crates/dx-core",
     "crates/dx-manifest",
     "crates/dx-security",
+    "crates/dx-integrity",
     "crates/dx-cli",
 ]
 
@@ -23,6 +24,7 @@ authors = ["Walter Angolar <angolarti@gmail.com>"]
 dx-core = { path = "crates/dx-core", version = "0.0.1" }
 dx-manifest = { path = "crates/dx-manifest", version = "0.0.1" }
 dx-security = { path = "crates/dx-security", version = "0.0.1" }
+dx-integrity = { path = "crates/dx-integrity", version = "0.0.1" }
 sha2 = "0.10"
 
 anyhow = "1"

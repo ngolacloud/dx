@@ -152,6 +152,60 @@ pub fn cmd_doctor() -> Result<ExitCode> {
     Ok(ExitCode::SUCCESS)
 }
 
+/// `dx fetch` — verifica a integridade do grafo bloqueado (sem compilar).
+/// Checksum dos `.crate` em cache vs Cargo.lock; opcionalmente extracção segura.
+pub fn cmd_fetch(root: &Utf8Path, locked: bool, extract_check: bool) -> Result<ExitCode> {
+    let lockfile = root.join("Cargo.lock");
+    if !lockfile.exists() {
+        if locked {
+            anyhow::bail!("--locked: não há Cargo.lock em {root}");
+        }
+        eprintln!("sem Cargo.lock em {root} — nada para verificar (corre `cargo generate-lockfile` ou `dx add`).");
+        return Ok(ExitCode::SUCCESS);
+    }
+
+    let limits = dx_integrity::Limits::default();
+    let report = dx_integrity::verify_lockfile(&lockfile, &limits, extract_check)
+        .context("verificar integridade do lockfile")?;
+
+    eprintln!("== dx fetch: integridade do grafo bloqueado ==");
+    eprintln!(
+        "Verificados (checksum bate){}: {}",
+        if extract_check {
+            " + extracção segura"
+        } else {
+            ""
+        },
+        report.verified.len()
+    );
+    if !report.missing.is_empty() {
+        eprintln!(
+            "Sem cobertura ({} não descarregados — SEM correspondência conhecida, nunca \"íntegros\"):",
+            report.missing.len()
+        );
+        for m in &report.missing {
+            eprintln!("  - {m}");
+        }
+    }
+    for e in &report.mismatched {
+        eprintln!("  [BLOQUEIA] integridade: {e}");
+    }
+    for (label, e) in &report.extract_failures {
+        eprintln!("  [BLOQUEIA] extracção insegura em {label}: {e}");
+    }
+
+    if report.has_failure() {
+        eprintln!(
+            "\nDecisão: BLOQUEADO ✗ — {} falha(s) de integridade/extracção. Nada segue para build.",
+            report.mismatched.len() + report.extract_failures.len()
+        );
+        Ok(ExitCode::from(4))
+    } else {
+        eprintln!("\nDecisão: integridade OK para o que está em cache (checksum prova origem, não benignidade).");
+        Ok(ExitCode::SUCCESS)
+    }
+}
+
 fn tool_version(bin: &str, args: &[&str]) {
     match Command::new(bin).args(args).output() {
         Ok(o) if o.status.success() => {

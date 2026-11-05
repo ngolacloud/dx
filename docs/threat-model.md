@@ -39,14 +39,17 @@ público.
 `seiva-console-admin`) e **recusa com sugestão** em vez de instalar o parecido.
 É um sinal, não prova; popularidade/idade/reputação não são prova de segurança.
 
-### S4 — Extracção de arquivos (inc.2)
-Bloquear path traversal, symlinks/hardlinks que escapem do destino, arquivos
-excessivos e descompressão descontrolada (zip-bomb).
+### S4 — Extracção de arquivos (**implementado**, ADR-0008)
+`dx-integrity::safe_unpack` bloqueia path traversal (absoluto/`..`),
+symlinks/hardlinks e descompressão descontrolada (limites de entradas/tamanho
+total/por-ficheiro, limitando os **bytes reais** lidos). Provado por testes com
+tarballs hostis forjados e ao vivo (`dx fetch --extract-check`).
 
-### S5 — Integridade (inc.2)
-Checksum de registry vs metadados confiáveis; git fixado por commit+origem;
-path por fingerprint de conteúdo. Checksum prova integridade vs origem, **não**
-benignidade.
+### S5 — Integridade (**implementado**, ADR-0008)
+`dx-integrity` verifica o sha256 dos `.crate` em cache contra o `checksum`
+fixado no Cargo.lock (`dx fetch`). Git fixado por commit+origem (modelo);
+fingerprint de conteúdo para path ainda planeado. Checksum prova integridade vs
+origem, **não** benignidade. O que não está em cache fica "sem cobertura".
 
 ### S6 — Corrupção por concorrência/crash (inc.1, **implementado**)
 Lock de workspace consultivo + journal com roll-forward idempotente + escrita

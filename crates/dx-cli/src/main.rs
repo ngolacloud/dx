@@ -128,10 +128,15 @@ enum Commands {
     Doctor,
     /// [inc.2] Actualizar dependências (consulta universo novo).
     Update { name: Option<String> },
-    /// [inc.2] Obter o grafo bloqueado sem compilar.
+    /// Verificar a integridade do grafo bloqueado (sem compilar).
     Fetch {
+        /// Exigir um Cargo.lock existente (falha se não houver).
         #[arg(long)]
         locked: bool,
+        /// Além do checksum, desempacotar cada `.crate` com salvaguardas
+        /// (traversal/symlink/zip-bomb) para um temporário e descartar.
+        #[arg(long)]
+        extract_check: bool,
     },
     /// [inc.4] Preparar release.
     Release {
@@ -264,11 +269,14 @@ fn run(cmd: Commands) -> Result<ExitCode> {
             2,
             "actualização com reavaliação de segurança do universo novo",
         ),
-        Commands::Fetch { .. } => not_yet(
-            "fetch",
-            2,
-            "obtenção em staging isolado + gate antes de qualquer build",
-        ),
+        Commands::Fetch {
+            locked,
+            extract_check,
+        } => {
+            let (root, manifest_path) = locate_manifest(None)?;
+            let _ = manifest_path;
+            security::cmd_fetch(&root, locked, extract_check)
+        }
         Commands::Release { .. } => not_yet(
             "release prepare",
             4,

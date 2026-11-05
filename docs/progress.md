@@ -40,6 +40,14 @@
 | Caminho de dependências legível (`cargo tree -i`) | Implementado | demo (smallvec → vuln-demo) |
 | `dx audit` / `dx doctor` com códigos de saída coerentes (0/4/5) | Implementado | demo ao vivo |
 
+### Integridade + extracção segura (ADR-0008, crate `dx-integrity`)
+
+| Item | Estado | Evidência |
+|------|--------|-----------|
+| Checksum dos `.crate` em cache vs `Cargo.lock`; sem cache = "sem cobertura" | Implementado+testado | `dx-integrity::verify`/`lockfile`; demo (96 verificados; adulterado → BLOQUEADO exit 4) |
+| Extracção segura: bloqueia traversal (abs/`..`), symlink/hardlink, zip-bomb (limites de entradas/total/por-ficheiro, bytes reais) | Implementado+testado | `dx-integrity::extract` (6 testes com tarballs hostis); `dx fetch --extract-check` |
+| `dx fetch [--locked] [--extract-check]` | Implementado | demo ao vivo |
+
 ### cargo-deny: origens, licenças, bans (ADR-0007)
 
 | Item | Estado | Evidência |
