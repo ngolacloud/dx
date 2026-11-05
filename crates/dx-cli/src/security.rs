@@ -129,6 +129,12 @@ pub fn cmd_doctor() -> Result<ExitCode> {
         }
     );
 
+    let caps = dx_sandbox::Capabilities::detect();
+    eprintln!(
+        "isolamento ({}): rede={} rlimits={} filesystem={} (FS não imposto nesta versão)",
+        caps.platform, caps.network_isolation, caps.resource_limits, caps.filesystem_isolation
+    );
+
     let policy = Policy::from_env();
     let db_path = db::default_db_path();
     let status = db::evaluate(&db_path, now_unix(), policy.max_db_age_secs);
@@ -204,6 +210,55 @@ pub fn cmd_fetch(root: &Utf8Path, locked: bool, extract_check: bool) -> Result<E
         eprintln!("\nDecisão: integridade OK para o que está em cache (checksum prova origem, não benignidade).");
         Ok(ExitCode::SUCCESS)
     }
+}
+
+/// `dx build --isolated` — compila com isolamento REAL (rede off, ambiente sem
+/// segredos, limites de recursos) e reporta o que foi de facto imposto.
+pub fn cmd_build_isolated(release: bool) -> Result<ExitCode> {
+    use dx_sandbox::{run, Capabilities, SandboxSpec};
+
+    let caps = Capabilities::detect();
+    let spec = SandboxSpec::default(); // deny_network + scrub_env + rlimits
+
+    // Rede desligada ⇒ deps têm de estar já obtidas: usamos --offline.
+    // Um build isolado é hermético: desligamos qualquer rustc-wrapper global
+    // (ex.: sccache) que dependa de rede, senão falha ao tentar contactá-la.
+    let mut args = vec![
+        "build".to_string(),
+        "--offline".to_string(),
+        "--config".to_string(),
+        "build.rustc-wrapper=\"\"".to_string(),
+    ];
+    if release {
+        args.push("--release".into());
+    }
+    let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
+
+    eprintln!("== dx build --isolated ==");
+    if spec.deny_network && !caps.network_isolation {
+        eprintln!(
+            "AVISO: isolamento de rede PEDIDO mas INDISPONÍVEL neste host (sem user+net namespace). Não finjo isolamento."
+        );
+    }
+
+    let outcome = run(&spec, &cargo, &args, &caps).context("correr build isolado")?;
+    let e = &outcome.enforced;
+    eprintln!("Imposto:");
+    eprintln!(
+        "  rede isolada: {} — {}",
+        e.network_isolated, e.network_mechanism
+    );
+    eprintln!(
+        "  ambiente sem segredos: {} (passadas: {})",
+        e.env_scrubbed,
+        e.env_kept.join(", ")
+    );
+    eprintln!("  limites: {}", e.rlimits_applied.join(", "));
+    eprintln!(
+        "  filesystem isolado: {} — {}",
+        e.filesystem_isolated, e.filesystem_note
+    );
+    Ok(ExitCode::from(outcome.code.unwrap_or(1) as u8))
 }
 
 fn tool_version(bin: &str, args: &[&str]) {

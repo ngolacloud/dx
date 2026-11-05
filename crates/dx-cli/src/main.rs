@@ -111,6 +111,10 @@ enum Commands {
     Build {
         #[arg(long)]
         release: bool,
+        /// Compilar com isolamento real (rede desligada, ambiente sem
+        /// segredos, limites de recursos). Usa `--offline` (deps já obtidas).
+        #[arg(long)]
+        isolated: bool,
     },
     /// Executar (delega em `cargo run`).
     Run {
@@ -227,7 +231,10 @@ fn run(cmd: Commands) -> Result<ExitCode> {
         }
         Commands::Lint => cargo_passthrough(&["clippy".into()]),
         Commands::Check => cargo_passthrough(&["check".into()]),
-        Commands::Build { release } => {
+        Commands::Build { release, isolated } => {
+            if isolated {
+                return security::cmd_build_isolated(release);
+            }
             let mut a = vec!["build".to_string()];
             if release {
                 a.push("--release".into());

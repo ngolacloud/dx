@@ -40,6 +40,16 @@
 | Caminho de dependências legível (`cargo tree -i`) | Implementado | demo (smallvec → vuln-demo) |
 | `dx audit` / `dx doctor` com códigos de saída coerentes (0/4/5) | Implementado | demo ao vivo |
 
+### Isolamento de build (ADR-0009, crate `dx-sandbox`)
+
+| Item | Estado | Evidência |
+|------|--------|-----------|
+| Rede isolada real via `unshare(CLONE_NEWUSER\|CLONE_NEWNET)`; detectada em runtime, reportada se indisponível | Implementado+testado | `dx-sandbox` netns test; demo (getent externo falha dentro) |
+| Limites de recursos (`setrlimit` CPU/FSIZE/NPROC) no filho antes do exec | Implementado+testado | `dx-sandbox`; `dx build --isolated` |
+| Ambiente sem segredos (`env_clear` + allowlist) | Implementado+testado | teste (segredo não atravessa) |
+| `dx build --isolated` (cargo offline + hermético; desliga rustc-wrapper de rede) | Implementado | demo (binário produzido; sccache falhou por rede cortada = prova) |
+| Isolamento de filesystem | **NÃO imposto** (honesto, reportado `false`) | threat model S1 |
+
 ### Integridade + extracção segura (ADR-0008, crate `dx-integrity`)
 
 | Item | Estado | Evidência |

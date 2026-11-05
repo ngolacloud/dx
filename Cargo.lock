@@ -236,6 +236,7 @@ dependencies = [
  "dx-core",
  "dx-integrity",
  "dx-manifest",
+ "dx-sandbox",
  "dx-security",
  "predicates",
  "sha2",
@@ -277,6 +278,16 @@ dependencies = [
  "tempfile",
  "thiserror",
  "toml_edit",
+]
+
+[[package]]
+name = "dx-sandbox"
+version = "0.0.1"
+dependencies = [
+ "camino",
+ "libc",
+ "serde",
+ "thiserror",
 ]
 
 [[package]]

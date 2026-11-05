@@ -20,13 +20,14 @@
 
 ## Superfícies e mitigações
 
-### S1 — Execução de código de dependências (inc.2)
+### S1 — Execução de código de dependências (**parcial**, ADR-0009)
 `build.rs`, proc-macros e código nativo são **superfícies de execução**. O gate
-resolve o grafo candidato **sem** os executar; inspecciona-os como dados. Para
-builds de dependências, prevê-se isolamento por plataforma (sem segredos, rede
-desactivada após fetch, FS mínimo, limites de recursos) — **mostrando
-capacidades reais**, sem chamar "sandbox" a um mero subprocesso. Fixtures
-maliciosas de teste são **inertes**.
+resolve o grafo candidato **sem** os executar (ADR-0006); inspecciona-os como
+dados. Para builds, `dx build --isolated` (crate `dx-sandbox`) aplica
+isolamento **real**: rede desligada via user+net namespace, ambiente sem
+segredos e `setrlimit` — **com relatório honesto** do que foi imposto. Em falta
+(reportado como `false`): **isolamento de filesystem** (mount namespace/FS
+mínimo). Fixtures maliciosas de teste são **inertes** (ver `dx-integrity`).
 
 ### S2 — Dependency confusion / mudança de origem (inc.2)
 Política de origem: **nunca** fazer fallback de package privado para crates.io.

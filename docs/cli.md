@@ -47,6 +47,13 @@ Remove uma dependência; idempotente (remover o que não existe é no-op).
 Delegam no Cargo com argv estruturado (sem shell), herdando stdio e código de
 saída. **Ainda não aplicam o gate de segurança** (inc.2 liga-o antes do build).
 
+### `dx build --isolated`
+Compila com isolamento **real** (crate `dx-sandbox`): rede desligada via
+`unshare(CLONE_NEWUSER|CLONE_NEWNET)`, ambiente sem segredos (allowlist mínima),
+limites de recursos (`setrlimit`). Hermético: usa `--offline` e desliga
+`rustc-wrapper` de rede. Reporta exactamente o que foi imposto. Isolamento de
+**filesystem não está imposto** nesta versão (reportado `false`).
+
 ### `dx fetch [--locked] [--extract-check]`
 Verifica a integridade do grafo bloqueado **sem compilar**: checksum dos
 `.crate` em cache vs `Cargo.lock`. `--extract-check` desempacota cada um com
