@@ -7,6 +7,7 @@
 //! `release` chegam em incrementos seguintes e estão marcados como tal.
 
 mod buildcmd;
+mod releasecmd;
 mod scaffold;
 mod security;
 mod stage;
@@ -323,11 +324,9 @@ fn run(cmd: Commands) -> Result<ExitCode> {
             let _ = manifest_path;
             security::cmd_fetch(&root, locked, extract_check)
         }
-        Commands::Release { .. } => not_yet(
-            "release prepare",
-            4,
-            "validações + binários/SBOM/proveniência em ambiente limpo",
-        ),
+        Commands::Release { what } => match what {
+            ReleaseCmd::Prepare => releasecmd::cmd_release_prepare(),
+        },
     }
 }
 

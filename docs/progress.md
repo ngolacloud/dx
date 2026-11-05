@@ -40,7 +40,19 @@
 | Caminho de dependências legível (`cargo tree -i`) | Implementado | demo (smallvec → vuln-demo) |
 | `dx audit` / `dx doctor` com códigos de saída coerentes (0/4/5) | Implementado | demo ao vivo |
 
-### Perfis LLVM + medição + PGO (ADR-0010, crate `dx-build`) — inc.4 parcial
+### `dx release prepare` (ADR-0011, crate `dx-release`) — completa inc.4
+
+| Item | Estado | Evidência |
+|------|--------|-----------|
+| Validações em limpo: fmt/clippy-D/test/build + gate de segurança (refresh obrigatório antes de release) | Implementado | demo (base expirada→NÃO PRONTO; válida→PRONTO) |
+| SBOM CycloneDX 1.5 (purl + sha256) do Cargo.lock | Implementado+testado | `dx-release::sbom`; `sbom.cdx.json` |
+| Ordem topológica de publicação (cargo metadata) | Implementado+testado | `dx-release::topo` (deps-primeiro, ciclo); demo (dx-cli último) |
+| Proveniência (rustc/host/git/timestamp/artefactos+sha256) | Implementado+testado | `provenance.json` |
+| Binários+checksums (alvos bin do metadata) | Implementado | demo (binário `dx` 2,85 MiB + sha256) |
+| Prepara ≠ publica; idempotente (sem tags/versões/publish) | Implementado | reescreve `target/dx-release/` |
+| API/semver compat | **Sem cobertura** (cargo-semver-checks ausente, reportado) | — |
+
+### Perfis LLVM + medição + PGO (ADR-0010, crate `dx-build`) — inc.4 (perfis)
 
 | Item | Estado | Evidência |
 |------|--------|-----------|

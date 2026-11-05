@@ -7,6 +7,7 @@ members = [
     "crates/dx-integrity",
     "crates/dx-sandbox",
     "crates/dx-build",
+    "crates/dx-release",
     "crates/dx-cli",
 ]
 
@@ -29,6 +30,7 @@ dx-security = { path = "crates/dx-security", version = "0.0.1" }
 dx-integrity = { path = "crates/dx-integrity", version = "0.0.1" }
 dx-sandbox = { path = "crates/dx-sandbox", version = "0.0.1" }
 dx-build = { path = "crates/dx-build", version = "0.0.1" }
+dx-release = { path = "crates/dx-release", version = "0.0.1" }
 sha2 = "0.10"
 
 anyhow = "1"

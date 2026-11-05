@@ -77,8 +77,14 @@ salvaguardas (traversal/symlink/zip-bomb) para um temporário e descarta.
 Mismatch ou extracção insegura → BLOQUEADO (exit 4). `--locked` exige Cargo.lock.
 Packages não descarregados ficam "sem cobertura".
 
+### `dx release prepare`
+Valida em ambiente limpo (fmt/clippy-D/test/build + gate de segurança; API via
+cargo-semver-checks se presente) e produz artefactos para revisão em
+`target/dx-release/`: SBOM CycloneDX, proveniência, ordem topológica de
+publicação e binários+checksums. **Prepara ≠ publica**: não cria tags, não muda
+versões, não publica; é idempotente. Base expirada ⇒ NÃO PRONTO (§5).
+
 ## Planeado
 
-`dx update` · `dx release prepare` (inc.4) ·
-`dx new <plat> --template seiva` e `dx add seiva-console-admin` (inc.5).
-Hoje devolvem exit 3 com mensagem a dizer em que incremento chegam.
+`dx update` · `dx new <plat> --template seiva` e `dx add seiva-console-admin`
+(inc.5). Hoje devolvem exit 3 com mensagem a dizer em que incremento chegam.

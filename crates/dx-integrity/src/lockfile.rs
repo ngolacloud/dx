@@ -42,22 +42,48 @@ struct LockPkg {
 /// Packages git/path (sem checksum de registry) ficam de fora — a sua
 /// integridade é a revisão/fingerprint, tratada à parte (ver verify.rs).
 pub fn registry_checksums(lockfile: &Utf8Path) -> Result<Vec<PackageChecksum>, LockError> {
-    let text = std::fs::read_to_string(lockfile).map_err(|e| LockError::Read(e.to_string()))?;
-    let lock: Lock = toml::from_str(&text).map_err(|e| LockError::Parse(e.to_string()))?;
-    let mut out = Vec::new();
-    for p in lock.package {
-        if let (Some(source), Some(checksum)) = (p.source, p.checksum) {
+    Ok(all_packages(lockfile)?
+        .into_iter()
+        .filter_map(|p| {
+            let source = p.source?;
+            let checksum = p.checksum?;
             if source.starts_with("registry+") {
-                out.push(PackageChecksum {
+                Some(PackageChecksum {
                     name: p.name,
                     version: p.version,
                     checksum,
                     source,
-                });
+                })
+            } else {
+                None
             }
-        }
-    }
-    Ok(out)
+        })
+        .collect())
+}
+
+/// Uma entrada qualquer do Cargo.lock (registry, git, path ou local).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PackageEntry {
+    pub name: String,
+    pub version: String,
+    pub source: Option<String>,
+    pub checksum: Option<String>,
+}
+
+/// Todos os packages do Cargo.lock (para SBOM/proveniência).
+pub fn all_packages(lockfile: &Utf8Path) -> Result<Vec<PackageEntry>, LockError> {
+    let text = std::fs::read_to_string(lockfile).map_err(|e| LockError::Read(e.to_string()))?;
+    let lock: Lock = toml::from_str(&text).map_err(|e| LockError::Parse(e.to_string()))?;
+    Ok(lock
+        .package
+        .into_iter()
+        .map(|p| PackageEntry {
+            name: p.name,
+            version: p.version,
+            source: p.source,
+            checksum: p.checksum,
+        })
+        .collect())
 }
 
 #[cfg(test)]

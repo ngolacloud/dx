@@ -21,8 +21,10 @@ dx-security.workspace = true
 dx-integrity.workspace = true
 dx-sandbox.workspace = true
 dx-build.workspace = true
+dx-release.workspace = true
 anyhow.workspace = true
 camino.workspace = true
+serde_json.workspace = true
 clap = { version = "4", features = ["derive"] }
 tempfile.workspace = true
 

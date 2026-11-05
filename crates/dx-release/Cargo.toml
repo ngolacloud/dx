@@ -1,0 +1,20 @@
+[package]
+name = "dx-release"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "DX — preparação de release: ordem topológica de publicação, SBOM (CycloneDX) e proveniência. Prepara ≠ publica."
+
+[dependencies]
+dx-integrity.workspace = true
+camino.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+sha2.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

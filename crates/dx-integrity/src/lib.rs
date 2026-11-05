@@ -15,7 +15,7 @@ pub mod lockfile;
 pub mod verify;
 
 pub use extract::{safe_unpack, ExtractError, ExtractReport, Limits};
-pub use lockfile::{registry_checksums, PackageChecksum};
+pub use lockfile::{all_packages, registry_checksums, PackageChecksum, PackageEntry};
 pub use verify::{cached_crate_path, sha256_file, verify_crate, IntegrityError};
 
 use camino::Utf8Path;

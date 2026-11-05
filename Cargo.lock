@@ -247,9 +247,11 @@ dependencies = [
  "dx-core",
  "dx-integrity",
  "dx-manifest",
+ "dx-release",
  "dx-sandbox",
  "dx-security",
  "predicates",
+ "serde_json",
  "sha2",
  "tempfile",
 ]
@@ -289,6 +291,19 @@ dependencies = [
  "tempfile",
  "thiserror",
  "toml_edit",
+]
+
+[[package]]
+name = "dx-release"
+version = "0.0.1"
+dependencies = [
+ "camino",
+ "dx-integrity",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror",
 ]
 
 [[package]]
