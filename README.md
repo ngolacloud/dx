@@ -1,9 +1,11 @@
 # DX
 
-Experiência de ferramentas Rust inspirada no [UV](https://docs.astral.sh/uv/):
-clara, rápida e consistente, **respeitando os mecanismos nativos de Rust**.
-Cargo e rustc continuam a resolver e compilar; o DX acrescenta idempotência,
-um gate de segurança da cadeia de dependências, relatórios e perfis de build.
+**Gestão de dependências Rust com alterações explicáveis, segurança antes da
+execução e recuperação previsível — compatível com Cargo.** Inspirado na
+clareza do [UV](https://docs.astral.sh/uv/), **respeitando os mecanismos nativos
+de Rust**: Cargo e rustc continuam a resolver e compilar. O DX responde a
+«o que estou a introduzir?» (`dx add --plan`), aplica segurança antes do build
+e torna cada alteração recuperável. Ver [ADR-0015](docs/adr/0015-posicionamento-e-plano-de-impacto.md).
 
 - **Executável:** `dx`
 - **Crate de publicação:** `dx-cli` (o nome `dx` está ocupado em crates.io — ver
@@ -27,6 +29,8 @@ um gate de segurança da cadeia de dependências, relatórios e perfis de build.
 | Perfis LLVM (`--profile dev/release/throughput/size`) + medição (`bench-build`) + PGO (`dx pgo`) | **Implementado + testado** |
 | `dx release prepare` (validações + SBOM CycloneDX + proveniência + ordem topológica + checksums; prepara≠publica) | **Implementado + testado** |
 | `dx test --suite` configurável + relatórios (terminal/JSON/JUnit/HTML) + thresholds de carga | **Implementado + testado** |
+| **`dx add --plan`**: impacto antes de aterrar (grafo, build.rs/proc-macro/nativo, MSRV, segurança, cache-vs-novo) | **Implementado + testado** |
+| **`dx why`/`dx explain`**: porque está este crate/feature/duplicado no grafo (Cargo tree) | **Implementado** |
 | Adaptador Seiva: `dx new --template seiva` + `dx add seiva-console-admin` (integração declarativa por âncoras) | **Implementado + testado** |
 | `dx bench` (mock registry; resolução vs gate; cache frio/quente; overhead ≤10% em quente) | **Implementado + testado** |
 | `fetch`/`update`/`release prepare` | **Planeado** — stub honesto (exit 3) |

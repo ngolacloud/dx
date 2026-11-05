@@ -10,6 +10,7 @@
 
 mod benchcmd;
 mod buildcmd;
+mod plancmd;
 mod releasecmd;
 mod scaffold;
 mod security;
@@ -95,6 +96,9 @@ enum Commands {
         /// Resolver o grafo candidato sem rede (usa só o cache do Cargo).
         #[arg(long)]
         offline: bool,
+        /// Mostrar o IMPACTO (grafo, execução, MSRV, segurança) sem aterrar.
+        #[arg(long)]
+        plan: bool,
         #[command(flatten)]
         dry: DryRun,
     },
@@ -180,6 +184,20 @@ enum Commands {
         #[arg(long)]
         no_ansi: bool,
     },
+    /// Explicar porque é que um crate está no grafo (árvore inversa).
+    Why {
+        /// Nome do crate (ex.: `openssl-sys`).
+        spec: String,
+    },
+    /// Explicar o grafo: duplicados ou activação de uma feature.
+    Explain {
+        /// Mostrar versões duplicadas do mesmo crate.
+        #[arg(long)]
+        duplicates: bool,
+        /// Quem puxa esta feature (árvore inversa por feature).
+        #[arg(long)]
+        feature: Option<String>,
+    },
     /// [inc.2] Auditoria de segurança do grafo.
     Audit,
     /// [inc.2] Diagnóstico do ambiente.
@@ -256,6 +274,7 @@ fn run(cmd: Commands) -> Result<ExitCode> {
             registry,
             manifest_path,
             offline,
+            plan,
             dry,
         } => cmd_add(AddArgs {
             spec,
@@ -272,6 +291,7 @@ fn run(cmd: Commands) -> Result<ExitCode> {
             registry,
             manifest_path,
             offline,
+            plan,
             dry_run: dry.dry_run,
         }),
         Commands::Remove {
@@ -331,6 +351,38 @@ fn run(cmd: Commands) -> Result<ExitCode> {
             out,
             no_ansi,
         } => testcmd::cmd_test(suite.as_deref(), format.as_deref(), out.as_deref(), no_ansi),
+        Commands::Why { spec } => {
+            eprintln!(
+                "== dx why {spec} == (quem puxa este crate; confirmado pela resolução Cargo)"
+            );
+            cargo_passthrough(&[
+                "tree".into(),
+                "-i".into(),
+                spec,
+                "-e".into(),
+                "normal,build".into(),
+            ])
+        }
+        Commands::Explain {
+            duplicates,
+            feature,
+        } => {
+            if let Some(f) = feature {
+                eprintln!("== dx explain --feature {f} == (quem activa esta feature)");
+                cargo_passthrough(&[
+                    "tree".into(),
+                    "-e".into(),
+                    "features".into(),
+                    "-i".into(),
+                    f,
+                ])
+            } else if duplicates {
+                eprintln!("== dx explain --duplicates == (versões múltiplas do mesmo crate)");
+                cargo_passthrough(&["tree".into(), "-d".into()])
+            } else {
+                bail!("usa `--duplicates` ou `--feature <nome>`");
+            }
+        }
         Commands::Audit => {
             let (root, manifest_path) = locate_manifest(None)?;
             let _ = manifest_path;
@@ -466,6 +518,7 @@ struct AddArgs {
     registry: Option<String>,
     manifest_path: Option<Utf8PathBuf>,
     offline: bool,
+    plan: bool,
     dry_run: bool,
 }
 
@@ -529,6 +582,14 @@ fn cmd_add(a: AddArgs) -> Result<ExitCode> {
     let (root, manifest_path) = locate_manifest(a.manifest_path.as_deref())?;
     recover(&root).ok(); // completar journal pendente antes de mutar
     let mut manifest = Manifest::load(&manifest_path)?;
+
+    // `--plan`: mostrar o IMPACTO sem aterrar (o que estou a introduzir?).
+    if a.plan {
+        let mut probe = Manifest::load(&manifest_path)?;
+        probe.upsert(&spec);
+        let mutated = probe.to_toml_string();
+        return plancmd::impact(&root, &manifest_path, &mutated, &spec, a.offline);
+    }
 
     let change = manifest.plan_add(&spec)?;
     let mut plan = Plan::new();

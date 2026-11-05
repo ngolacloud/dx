@@ -106,6 +106,22 @@ fn add_is_idempotent_byte_for_byte() {
 }
 
 #[test]
+fn plan_writes_nothing_and_shows_impact() {
+    // Forma NotApplicable (dep path) → plano offline, sem rede; não escreve.
+    let tmp = tempfile::tempdir().unwrap();
+    seed_notapplicable(tmp.path());
+    let before = fs::read_to_string(tmp.path().join("Cargo.toml")).unwrap();
+    dx().current_dir(tmp.path())
+        .args(["add", "serde@1", "--plan"])
+        .assert()
+        .code(6) // NotApplicable → grafo não analisável, mas não escreve
+        .stderr(predicate::str::contains("dx add --plan"))
+        .stderr(predicate::str::contains("Mudança no manifesto"));
+    let after = fs::read_to_string(tmp.path().join("Cargo.toml")).unwrap();
+    assert_eq!(before, after, "--plan não pode escrever");
+}
+
+#[test]
 fn dry_run_writes_nothing() {
     let tmp = tempfile::tempdir().unwrap();
     seed_plain(tmp.path());

@@ -70,6 +70,25 @@ pub struct PackageEntry {
     pub checksum: Option<String>,
 }
 
+/// Packages presentes em `after` mas não em `before` (por nome+versão).
+/// Base do "o que estou a introduzir?" do `dx add --plan`.
+pub fn diff_added(before: &[PackageEntry], after: &[PackageEntry]) -> Vec<PackageEntry> {
+    use std::collections::BTreeSet;
+    let seen: BTreeSet<(&str, &str)> = before
+        .iter()
+        .map(|p| (p.name.as_str(), p.version.as_str()))
+        .collect();
+    let mut out: Vec<PackageEntry> = after
+        .iter()
+        .filter(|p| !seen.contains(&(p.name.as_str(), p.version.as_str())))
+        .cloned()
+        .collect();
+    out.sort_by(|a, b| {
+        (a.name.as_str(), a.version.as_str()).cmp(&(b.name.as_str(), b.version.as_str()))
+    });
+    out
+}
+
 /// Todos os packages do Cargo.lock (para SBOM/proveniência).
 pub fn all_packages(lockfile: &Utf8Path) -> Result<Vec<PackageEntry>, LockError> {
     let text = std::fs::read_to_string(lockfile).map_err(|e| LockError::Read(e.to_string()))?;
@@ -121,5 +140,28 @@ source = "git+https://example/x#deadbeef"
         assert_eq!(cs.len(), 1);
         assert_eq!(cs[0].name, "serde");
         assert_eq!(cs[0].checksum, "abc123");
+    }
+
+    #[test]
+    fn diff_added_finds_new_packages() {
+        let mk = |n: &str, v: &str| PackageEntry {
+            name: n.into(),
+            version: v.into(),
+            source: None,
+            checksum: None,
+        };
+        let before = vec![mk("serde", "1.0.0"), mk("libc", "0.2.0")];
+        let after = vec![
+            mk("serde", "1.0.0"),
+            mk("libc", "0.2.0"),
+            mk("anyhow", "1.0.0"),
+            mk("serde", "1.1.0"), // nova versão também conta
+        ];
+        let added = diff_added(&before, &after);
+        assert_eq!(added.len(), 2);
+        assert!(added.iter().any(|p| p.name == "anyhow"));
+        assert!(added
+            .iter()
+            .any(|p| p.name == "serde" && p.version == "1.1.0"));
     }
 }
