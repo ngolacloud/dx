@@ -12,6 +12,9 @@ e torna cada alteração recuperável. Ver [ADR-0015](docs/adr/0015-posicionamen
   [ADR-0003](docs/adr/0003-nome-publicado-vs-executavel.md))
 - **Opcional:** não exige Seiva, DORM, Kubernetes nem Delonix. O Seiva é um
   consumidor opcional; o DX é opcional para qualquer projecto.
+- **Licença:** MIT OR Apache-2.0 ([LICENSE-MIT](LICENSE-MIT), [LICENSE-APACHE](LICENSE-APACHE)).
+- **Release:** estado consolidado em [RELEASE.md](RELEASE.md) · [CHANGELOG.md](CHANGELOG.md) · CI em `.github/workflows/ci.yml`. Nada publicado (publicar exige instrução explícita).
+- **Output em inglês:** todas as mensagens/logs/`--help`/erros do DX são em inglês.
 
 ## Estado (2026-11-05)
 

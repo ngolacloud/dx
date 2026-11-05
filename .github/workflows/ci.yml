@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  check:
+    name: fmt + clippy + test + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy, llvm-tools-preview
+      - uses: Swatinem/rust-cache@v2
+      - name: Format
+        run: cargo fmt --all -- --check
+      - name: Lint
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Test
+        run: cargo test --workspace
+      - name: Build (release)
+        run: cargo build --workspace --release
+
+  # Optional security gate: runs DX's own gate over its lockfile. The advisory
+  # database must be fresh (see ADR-0005: refresh required before release).
+  security:
+    name: dx audit (cargo-audit + cargo-deny)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install scanners
+        run: cargo install cargo-audit cargo-deny --locked
+      - name: Refresh advisory database
+        run: cargo audit fetch || true
+      - name: Build dx
+        run: cargo build -p dx-cli
+      - name: dx audit
+        run: ./target/debug/dx audit
