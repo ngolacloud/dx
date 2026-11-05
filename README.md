@@ -24,6 +24,7 @@ um gate de segurança da cadeia de dependências, relatórios e perfis de build.
 | `cargo-deny` (licenças/origens/bans) + política de origem anti dependency-confusion | **Implementado + testado** |
 | Integridade (`dx fetch`: checksum vs lockfile) + extracção segura (traversal/symlink/zip-bomb) | **Implementado + testado** |
 | Isolamento de build (`dx build --isolated`: rede off via netns, env sem segredos, rlimits) | **Implementado + testado** (FS não imposto) |
+| Perfis LLVM (`--profile dev/release/throughput/size`) + medição (`bench-build`) + PGO (`dx pgo`) | **Implementado + testado** |
 | `fetch`/`update`/`release prepare` | **Planeado** — stub honesto (exit 3) |
 | Perfis LLVM / PGO / `release prepare` | **Planeado (inc.4)** |
 | Adaptador Seiva / `seiva-console-admin` | **Planeado (inc.5)** |

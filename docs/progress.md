@@ -40,6 +40,17 @@
 | Caminho de dependências legível (`cargo tree -i`) | Implementado | demo (smallvec → vuln-demo) |
 | `dx audit` / `dx doctor` com códigos de saída coerentes (0/4/5) | Implementado | demo ao vivo |
 
+### Perfis LLVM + medição + PGO (ADR-0010, crate `dx-build`) — inc.4 parcial
+
+| Item | Estado | Evidência |
+|------|--------|-----------|
+| Perfis dev/release/throughput/size via `cargo --config`; release=ThinLTO+cg16 (nunca fat/cg1 default); throughput opt-in | Implementado+testado | `dx-build::profile` (5 testes) |
+| Nenhum perfil mexe em panic/overflow/segurança; release preserva símbolos | Implementado+testado | teste `no_profile_touches_panic_or_overflow` |
+| `--native` (target-cpu=native) com aviso; não default em releases | Implementado | `dx build --native` |
+| Medição tempo (Instant) + memória máx (/usr/bin/time -v) + tamanho binário | Implementado+testado | `dx bench-build`; demo (dev/release/size tabulados) |
+| PGO: generate→workload→`llvm-profdata merge`→use→comparar; prefere profdata da sysroot (versão compatível), reporta incompatível | Implementado+testado | `dx-build::pgo`; demo (v9 recusou, toolchain fundiu: 1,29→0,42 MiB) |
+| Cache de compilação próprio; isolamento de artefactos CI | **Planeado** | — |
+
 ### Isolamento de build (ADR-0009, crate `dx-sandbox`)
 
 | Item | Estado | Evidência |

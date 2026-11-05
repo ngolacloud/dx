@@ -6,6 +6,7 @@
 //! shell). O gate de segurança, `update`/`fetch`, `audit`, `doctor` e
 //! `release` chegam em incrementos seguintes e estão marcados como tal.
 
+mod buildcmd;
 mod scaffold;
 mod security;
 mod stage;
@@ -111,10 +112,33 @@ enum Commands {
     Build {
         #[arg(long)]
         release: bool,
+        /// Perfil LLVM: dev | release | throughput | size.
+        #[arg(long)]
+        profile: Option<String>,
+        /// target-cpu=native (NÃO para releases distribuídas).
+        #[arg(long)]
+        native: bool,
+        /// Medir tempo/memória/tamanho do build.
+        #[arg(long)]
+        measure: bool,
         /// Compilar com isolamento real (rede desligada, ambiente sem
         /// segredos, limites de recursos). Usa `--offline` (deps já obtidas).
         #[arg(long)]
         isolated: bool,
+    },
+    /// Medir build limpo por perfil (tempo/memória/tamanho).
+    BenchBuild {
+        /// Lista de perfis separada por vírgulas (default: todos).
+        #[arg(long)]
+        profiles: Option<String>,
+    },
+    /// PGO: instrumentar → workload → fundir perfis → recompilar → comparar.
+    Pgo {
+        #[arg(long)]
+        bin: Option<String>,
+        /// Comando de workload (default: correr o próprio binário).
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        workload: Vec<String>,
     },
     /// Executar (delega em `cargo run`).
     Run {
@@ -231,9 +255,22 @@ fn run(cmd: Commands) -> Result<ExitCode> {
         }
         Commands::Lint => cargo_passthrough(&["clippy".into()]),
         Commands::Check => cargo_passthrough(&["check".into()]),
-        Commands::Build { release, isolated } => {
+        Commands::Build {
+            release,
+            profile,
+            native,
+            measure,
+            isolated,
+        } => {
             if isolated {
                 return security::cmd_build_isolated(release);
+            }
+            if let Some(name) = profile {
+                return buildcmd::cmd_build_profile(&name, native, measure);
+            }
+            if native || measure {
+                // --native/--measure implicam o perfil release equilibrado.
+                return buildcmd::cmd_build_profile("release", native, measure);
             }
             let mut a = vec!["build".to_string()];
             if release {
@@ -241,6 +278,8 @@ fn run(cmd: Commands) -> Result<ExitCode> {
             }
             cargo_passthrough(&a)
         }
+        Commands::BenchBuild { profiles } => buildcmd::cmd_bench_build(profiles.as_deref()),
+        Commands::Pgo { bin, workload } => buildcmd::cmd_pgo(bin.as_deref(), &workload),
         Commands::Run { args } => {
             let mut a = vec!["run".to_string()];
             if !args.is_empty() {

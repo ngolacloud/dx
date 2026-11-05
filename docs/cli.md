@@ -47,6 +47,22 @@ Remove uma dependência; idempotente (remover o que não existe é no-op).
 Delegam no Cargo com argv estruturado (sem shell), herdando stdio e código de
 saída. **Ainda não aplicam o gate de segurança** (inc.2 liga-o antes do build).
 
+### `dx build --profile <dev|release|throughput|size> [--native] [--measure]`
+Perfis LLVM aplicados por `cargo --config` (sem tocar no Cargo.toml). `release`
+= ThinLTO+cg16 (default equilibrado); `throughput` (fat-LTO+cg1) é opt-in e
+lento; `size` faz strip. `--native` adiciona target-cpu=native (com aviso; não
+para releases distribuídas). `--measure` reporta tempo/memória/tamanho.
+
+### `dx bench-build [--profiles a,b,c]`
+Build **limpo** por perfil, tabela de tempo (relógio), memória máxima (GNU time)
+e tamanho do binário.
+
+### `dx pgo [--bin <nome>] [-- <workload...>]`
+PGO real: instrumenta (`-Cprofile-generate`), corre o workload (o binário ou um
+comando dado), funde com `llvm-profdata` (prefere o da sysroot, versão
+compatível; reporta incompatível), recompila (`-Cprofile-use`) e compara. O
+ganho de performance exige medir o serviço com carga (ver §9).
+
 ### `dx build --isolated`
 Compila com isolamento **real** (crate `dx-sandbox`): rede desligada via
 `unshare(CLONE_NEWUSER|CLONE_NEWNET)`, ambiente sem segredos (allowlist mínima),

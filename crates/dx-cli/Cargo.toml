@@ -20,6 +20,7 @@ dx-manifest.workspace = true
 dx-security.workspace = true
 dx-integrity.workspace = true
 dx-sandbox.workspace = true
+dx-build.workspace = true
 anyhow.workspace = true
 camino.workspace = true
 clap = { version = "4", features = ["derive"] }

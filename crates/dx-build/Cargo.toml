@@ -1,0 +1,15 @@
+[package]
+name = "dx-build"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "DX — perfis de build LLVM (dev/release/throughput/size), medição (tempo/memória/tamanho) e PGO."
+
+[dependencies]
+camino.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tempfile.workspace = true
