@@ -6,7 +6,7 @@ use std::io::Read;
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum IntegrityError {
-    #[error("checksum não bate para {name}@{version}: esperado {expected}, obtido {actual}")]
+    #[error("checksum mismatch for {name}@{version}: expected {expected}, got {actual}")]
     Mismatch {
         name: String,
         version: String,

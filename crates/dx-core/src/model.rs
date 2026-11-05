@@ -173,17 +173,17 @@ impl DepSpec {
     pub fn parse_name_at_version(spec: &str) -> Result<(String, Option<String>)> {
         if let Some((name, req)) = spec.split_once('@') {
             if name.is_empty() {
-                return Err(DxError::InvalidSpec(format!("nome vazio em `{spec}`")));
+                return Err(DxError::InvalidSpec(format!("empty name in `{spec}`")));
             }
             if req.is_empty() {
                 return Err(DxError::InvalidSpec(format!(
-                    "requisito de versão vazio em `{spec}`"
+                    "empty version requirement in `{spec}`"
                 )));
             }
             Ok((name.to_string(), Some(req.to_string())))
         } else {
             if spec.is_empty() {
-                return Err(DxError::InvalidSpec("nome vazio".into()));
+                return Err(DxError::InvalidSpec("empty name".into()));
             }
             Ok((spec.to_string(), None))
         }

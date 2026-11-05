@@ -65,7 +65,7 @@ fn new_refuses_nonempty_dir() {
         .args(["new", "ocupado", "--bin"])
         .assert()
         .failure()
-        .stderr(predicate::str::contains("já existe e não está vazio"));
+        .stderr(predicate::str::contains("already exists and is not empty"));
 }
 
 #[test]
@@ -78,7 +78,7 @@ fn add_is_idempotent_byte_for_byte() {
         .args(["add", "serde@1", "--features", "derive"])
         .assert()
         .code(6)
-        .stderr(predicate::str::contains("gate pré-aterragem NÃO aplicado"));
+        .stderr(predicate::str::contains("pre-landing gate NOT applied"));
     let after_first = fs::read_to_string(tmp.path().join("Cargo.toml")).unwrap();
     assert!(after_first.contains("serde"));
     assert!(after_first.contains("derive"));
@@ -88,7 +88,7 @@ fn add_is_idempotent_byte_for_byte() {
         .args(["add", "serde@1", "--features", "derive"])
         .assert()
         .success()
-        .stderr(predicate::str::contains("sem alterações"));
+        .stderr(predicate::str::contains("no changes"));
     let after_second = fs::read_to_string(tmp.path().join("Cargo.toml")).unwrap();
     assert_eq!(
         after_first, after_second,
@@ -100,7 +100,7 @@ fn add_is_idempotent_byte_for_byte() {
         .args(["add", "serde@1", "--features", "derive,derive"])
         .assert()
         .success()
-        .stderr(predicate::str::contains("sem alterações"));
+        .stderr(predicate::str::contains("no changes"));
     let after_third = fs::read_to_string(tmp.path().join("Cargo.toml")).unwrap();
     assert_eq!(after_first, after_third);
 }
@@ -116,7 +116,7 @@ fn plan_writes_nothing_and_shows_impact() {
         .assert()
         .code(6) // NotApplicable → grafo não analisável, mas não escreve
         .stderr(predicate::str::contains("dx add --plan"))
-        .stderr(predicate::str::contains("Mudança no manifesto"));
+        .stderr(predicate::str::contains("Manifest change"));
     let after = fs::read_to_string(tmp.path().join("Cargo.toml")).unwrap();
     assert_eq!(before, after, "--plan não pode escrever");
 }
@@ -131,7 +131,7 @@ fn dry_run_writes_nothing() {
         .args(["add", "anyhow@1", "--dry-run"])
         .assert()
         .success()
-        .stderr(predicate::str::contains("Plano"));
+        .stderr(predicate::str::contains("Plan"));
     let after = fs::read_to_string(tmp.path().join("Cargo.toml")).unwrap();
     assert_eq!(before, after, "--dry-run não pode escrever");
 }
@@ -155,7 +155,7 @@ fn source_conflict_refuses() {
         ])
         .assert()
         .failure()
-        .stderr(predicate::str::contains("origem diferente"));
+        .stderr(predicate::str::contains("different source"));
 }
 
 #[test]
@@ -179,7 +179,7 @@ fn registry_without_version_is_rejected_with_guidance() {
         .args(["add", "anyhow"])
         .assert()
         .failure()
-        .stderr(predicate::str::contains("sem versão"));
+        .stderr(predicate::str::contains("without a version"));
 }
 
 #[test]
@@ -200,7 +200,7 @@ fn remove_is_idempotent() {
         .args(["remove", "serde"])
         .assert()
         .success()
-        .stderr(predicate::str::contains("sem alterações"));
+        .stderr(predicate::str::contains("no changes"));
 }
 
 #[test]
@@ -232,7 +232,7 @@ fn not_applicable_lands_but_reports_unverified() {
         .args(["add", "serde@1"])
         .assert()
         .code(6)
-        .stderr(predicate::str::contains("Corre `dx audit`"));
+        .stderr(predicate::str::contains("Run `dx audit`"));
 }
 
 /// Journal pendente é recuperado antes da operação seguinte, sem perda.
@@ -290,7 +290,7 @@ fn gate_pending_when_db_expired_blocks_landing() {
         .args(["add", "serde@1", "--offline"])
         .assert()
         .code(5)
-        .stderr(predicate::str::contains("NÃO aterrou"));
+        .stderr(predicate::str::contains("did NOT land"));
     let body = fs::read_to_string(tmp.path().join("Cargo.toml")).unwrap();
     assert!(!body.contains("serde"), "pending não pode aterrar");
 }
@@ -308,7 +308,7 @@ fn gate_approved_when_db_fresh_lands() {
         .args(["add", "serde@1", "--offline"])
         .assert()
         .success()
-        .stderr(predicate::str::contains("APROVADO"));
+        .stderr(predicate::str::contains("APPROVED"));
     let body = fs::read_to_string(tmp.path().join("Cargo.toml")).unwrap();
     assert!(body.contains("serde"));
 }

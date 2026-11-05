@@ -31,7 +31,7 @@ use camino::Utf8Path;
 pub enum GateError {
     #[error(transparent)]
     Audit(#[from] audit::AuditError),
-    #[error("erro de I/O no gate: {0}")]
+    #[error("gate I/O error: {0}")]
     Io(#[from] std::io::Error),
 }
 

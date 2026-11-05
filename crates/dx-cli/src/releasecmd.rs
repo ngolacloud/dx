@@ -21,7 +21,7 @@ fn cargo() -> String {
 
 fn locate() -> Result<(Utf8PathBuf, Option<String>)> {
     let cwd = std::env::current_dir().context("CWD")?;
-    let mut dir = Utf8PathBuf::from_path_buf(cwd).map_err(|_| anyhow::anyhow!("CWD não-UTF8"))?;
+    let mut dir = Utf8PathBuf::from_path_buf(cwd).map_err(|_| anyhow::anyhow!("non-UTF8 CWD"))?;
     loop {
         if dir.join("Cargo.toml").exists() {
             let name = Manifest::load(dir.join("Cargo.toml"))
@@ -30,7 +30,7 @@ fn locate() -> Result<(Utf8PathBuf, Option<String>)> {
             return Ok((dir.clone(), name));
         }
         if !dir.pop() {
-            anyhow::bail!("não encontrei um Cargo.toml a partir do directório actual");
+            anyhow::bail!("no Cargo.toml found from the current directory");
         }
     }
 }
@@ -48,7 +48,7 @@ fn gate(label: &str, root: &Utf8Path, program: &str, args: &[&str]) -> (bool, St
             (true, String::new())
         }
         Ok(o) => {
-            eprintln!("FALHOU");
+            eprintln!("FAILED");
             let mut s = String::from_utf8_lossy(&o.stderr).into_owned();
             if s.len() > 800 {
                 s = format!("...{}", &s[s.len() - 800..]);
@@ -56,7 +56,7 @@ fn gate(label: &str, root: &Utf8Path, program: &str, args: &[&str]) -> (bool, St
             (false, s)
         }
         Err(e) => {
-            eprintln!("ERRO ({e})");
+            eprintln!("ERROR ({e})");
             (false, e.to_string())
         }
     }
@@ -80,16 +80,16 @@ fn host_target() -> String {
             s.lines()
                 .find_map(|l| l.strip_prefix("host: ").map(str::to_string))
         })
-        .unwrap_or_else(|| "desconhecido".into())
+        .unwrap_or_else(|| "unknown".into())
 }
 
 pub fn cmd_release_prepare() -> Result<ExitCode> {
     let (root, pkg) = locate()?;
     eprintln!("== dx release prepare == ({root})");
-    eprintln!("Prepara ≠ publica: NÃO cria tags, NÃO muda versões, NÃO publica.\n");
+    eprintln!("Prepare != publish: does NOT create tags, change versions, or publish.\n");
 
     // --- Gates em ambiente limpo ---
-    eprintln!("Validações:");
+    eprintln!("Validations:");
     let mut failures: Vec<(String, String)> = Vec::new();
     let mut run = |label: &str, prog: &str, args: &[&str]| {
         let (ok, tail) = gate(label, &root, prog, args);
@@ -103,28 +103,28 @@ pub fn cmd_release_prepare() -> Result<ExitCode> {
         &cargo(),
         &["clippy", "--all-targets", "--", "-D", "warnings"],
     );
-    run("testes", &cargo(), &["test", "--quiet"]);
-    run("build limpo (release)", &cargo(), &["build", "--release"]);
+    run("tests", &cargo(), &["test", "--quiet"]);
+    run("clean build (release)", &cargo(), &["build", "--release"]);
 
-    // Gate de segurança do DX (inclui "refresh obrigatório antes de release").
-    eprint!("  {:<22} ... ", "segurança (gate DX)");
+    // Gate de segurança do DX (inclui "refresh required before release").
+    eprint!("  {:<22} ... ", "security (DX gate)");
     let policy = Policy::from_env();
     match run_gate(&root, &root, &policy, now_unix()) {
         Ok(o) if o.verdict.decision == Decision::Approved => eprintln!("OK"),
         Ok(o) => {
             eprintln!("{}", o.verdict.decision.as_str().to_uppercase());
             failures.push((
-                "segurança".into(),
+                "security".into(),
                 format!(
-                    "decisão {} — {}",
+                    "decision {} — {}",
                     o.verdict.decision.as_str(),
                     o.verdict.db_status.detail
                 ),
             ));
         }
         Err(e) => {
-            eprintln!("ERRO");
-            failures.push(("segurança".into(), e.to_string()));
+            eprintln!("ERROR");
+            failures.push(("security".into(), e.to_string()));
         }
     }
 
@@ -137,12 +137,12 @@ pub fn cmd_release_prepare() -> Result<ExitCode> {
             failures.push(("semver".into(), tail));
         }
     } else {
-        eprintln!("SEM COBERTURA (instalar cargo-semver-checks)");
+        eprintln!("NOT COVERED (install cargo-semver-checks)");
     }
 
     if !failures.is_empty() {
         eprintln!(
-            "\n✗ NÃO PRONTO: {} validação(ões) falharam. Artefactos não produzidos.",
+            "\n\u{2717} NOT READY: {} validation(s) failed. Artifacts not produced.",
             failures.len()
         );
         for (name, tail) in &failures {
@@ -155,13 +155,13 @@ pub fn cmd_release_prepare() -> Result<ExitCode> {
     }
 
     // --- Artefactos para revisão ---
-    eprintln!("\nArtefactos:");
+    eprintln!("\nArtifacts:");
     let generated = capture("date", &["-u", "+%Y-%m-%dT%H:%M:%SZ"], None)
         .unwrap_or_else(|| format!("{}s-epoch", now_unix()));
 
     // SBOM a partir do Cargo.lock.
     let lockfile = root.join("Cargo.lock");
-    let bom = sbom::cyclonedx(&lockfile, &generated).context("gerar SBOM")?;
+    let bom = sbom::cyclonedx(&lockfile, &generated).context("generate SBOM")?;
 
     // Ordem topológica de publicação (workspace).
     let meta = capture(
@@ -184,7 +184,7 @@ pub fn cmd_release_prepare() -> Result<ExitCode> {
     for name in &bin_names {
         let bin = root.join("target/release").join(name);
         if bin.exists() {
-            artifacts.push(artifact_of(&bin).context("checksum do binário")?);
+            artifacts.push(artifact_of(&bin).context("binary checksum")?);
         }
     }
 
@@ -197,15 +197,17 @@ pub fn cmd_release_prepare() -> Result<ExitCode> {
         artifacts: artifacts.clone(),
     };
 
-    let dir = write_review_bundle(&root, &bom, &provenance, &order).context("escrever bundle")?;
+    let dir = write_review_bundle(&root, &bom, &provenance, &order).context("write bundle")?;
 
     eprintln!("  SBOM (CycloneDX):   {}", dir.join("sbom.cdx.json"));
-    eprintln!("  proveniência:       {}", dir.join("provenance.json"));
-    eprintln!("  ordem de publicação:{}", dir.join("publish-order.txt"));
-    eprintln!("  binários+checksum:  {} artefacto(s)", artifacts.len());
-    eprintln!("\nOrdem de publicação ({} membros):", order.len());
+    eprintln!("  provenance:         {}", dir.join("provenance.json"));
+    eprintln!("  publish order:      {}", dir.join("publish-order.txt"));
+    eprintln!("  binaries+checksum:  {} artifact(s)", artifacts.len());
+    eprintln!("\nPublish order ({} members):", order.len());
     eprintln!("  {}", order.join(" → "));
-    eprintln!("\n✓ PRONTO PARA REVISÃO. Publicar requer instrução específica (não feito aqui).");
+    eprintln!(
+        "\n\u{2713} READY FOR REVIEW. Publishing requires an explicit instruction (not done here)."
+    );
     Ok(ExitCode::SUCCESS)
 }
 

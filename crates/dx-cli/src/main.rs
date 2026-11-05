@@ -31,7 +31,7 @@ use dx_security::{run_gate, Decision, Policy};
 #[derive(Parser)]
 #[command(
     name = "dx",
-    about = "DX — experiência de ferramentas Rust inspirada no UV (executável: dx)",
+    about = "DX — explainable, security-first, Cargo-compatible Rust dependency management (binary: dx)",
     version
 )]
 struct Cli {
@@ -41,20 +41,20 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Criar um projecto novo (`--lib`, `--bin` ou `--template seiva`).
+    /// Create a new project (`--lib`, `--bin` or `--template seiva`).
     New {
         name: String,
         #[arg(long)]
         lib: bool,
         #[arg(long)]
         bin: bool,
-        /// Template: seiva (plataforma com composição gerida).
+        /// Template: seiva (platform with a managed composition).
         #[arg(long)]
         template: Option<String>,
         #[command(flatten)]
         dry: DryRun,
     },
-    /// Inicializar um projecto no directório actual.
+    /// Initialize a project in the current directory.
     Init {
         #[arg(long)]
         lib: bool,
@@ -65,9 +65,9 @@ enum Commands {
         #[command(flatten)]
         dry: DryRun,
     },
-    /// Adicionar uma dependência (idempotente).
+    /// Add a dependency (idempotent).
     Add {
-        /// `nome` ou `nome@requisito`.
+        /// `name` or `name@requirement`.
         spec: String,
         #[arg(long, value_delimiter = ',')]
         features: Vec<String>,
@@ -93,16 +93,16 @@ enum Commands {
         registry: Option<String>,
         #[arg(long)]
         manifest_path: Option<Utf8PathBuf>,
-        /// Resolver o grafo candidato sem rede (usa só o cache do Cargo).
+        /// Resolve the candidate graph without network (Cargo cache only).
         #[arg(long)]
         offline: bool,
-        /// Mostrar o IMPACTO (grafo, execução, MSRV, segurança) sem aterrar.
+        /// Show the IMPACT (graph, execution, MSRV, security) without landing.
         #[arg(long)]
         plan: bool,
         #[command(flatten)]
         dry: DryRun,
     },
-    /// Remover uma dependência (idempotente).
+    /// Remove a dependency (idempotent).
     Remove {
         name: String,
         #[arg(long)]
@@ -114,107 +114,107 @@ enum Commands {
         #[command(flatten)]
         dry: DryRun,
     },
-    /// Formatar (delega em `cargo fmt`).
+    /// Format (delegates to `cargo fmt`).
     Fmt {
         #[arg(long)]
         check: bool,
     },
-    /// Lint (delega em `cargo clippy`).
+    /// Lint (delegates to `cargo clippy`).
     Lint,
-    /// Verificar sem compilar binário final (delega em `cargo check`).
+    /// Check without building the final binary (delegates to `cargo check`).
     Check,
-    /// Compilar (delega em `cargo build`).
+    /// Build (delegates to `cargo build`).
     Build {
         #[arg(long)]
         release: bool,
-        /// Perfil LLVM: dev | release | throughput | size.
+        /// LLVM profile: dev | release | throughput | size.
         #[arg(long)]
         profile: Option<String>,
-        /// target-cpu=native (NÃO para releases distribuídas).
+        /// target-cpu=native (NOT for distributed releases).
         #[arg(long)]
         native: bool,
-        /// Medir tempo/memória/tamanho do build.
+        /// Measure build time/memory/size.
         #[arg(long)]
         measure: bool,
-        /// Compilar com isolamento real (rede desligada, ambiente sem
-        /// segredos, limites de recursos). Usa `--offline` (deps já obtidas).
+        /// Build with real isolation (network off, environment without
+        /// secrets, resource limits). Uses `--offline` (deps already fetched).
         #[arg(long)]
         isolated: bool,
     },
-    /// Medir build limpo por perfil (tempo/memória/tamanho).
+    /// Measure a clean build per profile (time/memory/size).
     BenchBuild {
-        /// Lista de perfis separada por vírgulas (default: todos).
+        /// Comma-separated list of profiles (default: all).
         #[arg(long)]
         profiles: Option<String>,
     },
-    /// Benchmark do pipeline de dependências (resolução vs gate; §9).
+    /// Benchmark the dependency pipeline (resolution vs gate; §9).
     Bench {
-        /// Tamanhos (nº de packages) separados por vírgulas (default: 10,100).
+        /// Sizes (number of packages), comma-separated (default: 10,100).
         #[arg(long)]
         sizes: Option<String>,
-        /// Repetições por medição (default: 5).
+        /// Repetitions per measurement (default: 5).
         #[arg(long, default_value_t = 5)]
         reps: usize,
     },
-    /// PGO: instrumentar → workload → fundir perfis → recompilar → comparar.
+    /// PGO: instrument -> workload -> merge profiles -> rebuild -> compare.
     Pgo {
         #[arg(long)]
         bin: Option<String>,
-        /// Comando de workload (default: correr o próprio binário).
+        /// Workload command (default: run the binary itself).
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         workload: Vec<String>,
     },
-    /// Executar (delega em `cargo run`).
+    /// Run (delegates to `cargo run`).
     Run {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
-    /// Testar uma suite (configurável) e emitir relatório versionado.
+    /// Run a (configurable) test suite and emit a versioned report.
     Test {
-        /// Suite: unit | doc | integration | <definida em dx.toml>.
+        /// Suite: unit | doc | integration | <defined in dx.toml>.
         #[arg(long)]
         suite: Option<String>,
-        /// Formato do relatório: terminal | json | junit | html.
+        /// Report format: terminal | json | junit | html.
         #[arg(long)]
         format: Option<String>,
-        /// Escrever o relatório num ficheiro em vez de stdout.
+        /// Write the report to a file instead of stdout.
         #[arg(long)]
         out: Option<Utf8PathBuf>,
-        /// Desligar cores no terminal.
+        /// Disable terminal colors.
         #[arg(long)]
         no_ansi: bool,
     },
-    /// Explicar porque é que um crate está no grafo (árvore inversa).
+    /// Explain why a crate is in the graph (inverse tree).
     Why {
-        /// Nome do crate (ex.: `openssl-sys`).
+        /// Crate name (e.g. `openssl-sys`).
         spec: String,
     },
-    /// Explicar o grafo: duplicados ou activação de uma feature.
+    /// Explain the graph: duplicates or a feature's activation.
     Explain {
-        /// Mostrar versões duplicadas do mesmo crate.
+        /// Show duplicate versions of the same crate.
         #[arg(long)]
         duplicates: bool,
-        /// Quem puxa esta feature (árvore inversa por feature).
+        /// Who pulls this feature (inverse tree by feature).
         #[arg(long)]
         feature: Option<String>,
     },
-    /// [inc.2] Auditoria de segurança do grafo.
+    /// Security audit of the graph.
     Audit,
-    /// [inc.2] Diagnóstico do ambiente.
+    /// Diagnose the environment.
     Doctor,
-    /// [inc.2] Actualizar dependências (consulta universo novo).
+    /// Update dependencies (queries a new universe).
     Update { name: Option<String> },
-    /// Verificar a integridade do grafo bloqueado (sem compilar).
+    /// Verify the integrity of the locked graph (without compiling).
     Fetch {
-        /// Exigir um Cargo.lock existente (falha se não houver).
+        /// Require an existing Cargo.lock (fails if absent).
         #[arg(long)]
         locked: bool,
-        /// Além do checksum, desempacotar cada `.crate` com salvaguardas
-        /// (traversal/symlink/zip-bomb) para um temporário e descartar.
+        /// Beyond the checksum, unpack each `.crate` with safeguards
+        /// (traversal/symlink/zip-bomb) into a temp dir and discard.
         #[arg(long)]
         extract_check: bool,
     },
-    /// [inc.4] Preparar release.
+    /// Prepare a release.
     Release {
         #[command(subcommand)]
         what: ReleaseCmd,
@@ -228,7 +228,7 @@ enum ReleaseCmd {
 
 #[derive(Args, Clone, Copy)]
 struct DryRun {
-    /// Mostrar o plano exacto sem alterar ficheiros.
+    /// Show the exact plan without changing files.
     #[arg(long)]
     dry_run: bool,
 }
@@ -238,7 +238,7 @@ fn main() -> ExitCode {
     match run(cli.command) {
         Ok(code) => code,
         Err(e) => {
-            eprintln!("erro: {e:#}");
+            eprintln!("error: {e:#}");
             ExitCode::FAILURE
         }
     }
@@ -352,9 +352,7 @@ fn run(cmd: Commands) -> Result<ExitCode> {
             no_ansi,
         } => testcmd::cmd_test(suite.as_deref(), format.as_deref(), out.as_deref(), no_ansi),
         Commands::Why { spec } => {
-            eprintln!(
-                "== dx why {spec} == (quem puxa este crate; confirmado pela resolução Cargo)"
-            );
+            eprintln!("== dx why {spec} == (who pulls this crate; confirmed by Cargo resolution)");
             cargo_passthrough(&[
                 "tree".into(),
                 "-i".into(),
@@ -368,7 +366,7 @@ fn run(cmd: Commands) -> Result<ExitCode> {
             feature,
         } => {
             if let Some(f) = feature {
-                eprintln!("== dx explain --feature {f} == (quem activa esta feature)");
+                eprintln!("== dx explain --feature {f} == (who activates this feature)");
                 cargo_passthrough(&[
                     "tree".into(),
                     "-e".into(),
@@ -377,10 +375,10 @@ fn run(cmd: Commands) -> Result<ExitCode> {
                     f,
                 ])
             } else if duplicates {
-                eprintln!("== dx explain --duplicates == (versões múltiplas do mesmo crate)");
+                eprintln!("== dx explain --duplicates == (multiple versions of the same crate)");
                 cargo_passthrough(&["tree".into(), "-d".into()])
             } else {
-                bail!("usa `--duplicates` ou `--feature <nome>`");
+                bail!("use `--duplicates` or `--feature <name>`");
             }
         }
         Commands::Audit => {
@@ -392,7 +390,7 @@ fn run(cmd: Commands) -> Result<ExitCode> {
         Commands::Update { .. } => not_yet(
             "update",
             2,
-            "actualização com reavaliação de segurança do universo novo",
+            "update with security re-evaluation of the new universe",
         ),
         Commands::Fetch {
             locked,
@@ -410,10 +408,10 @@ fn run(cmd: Commands) -> Result<ExitCode> {
 
 /// Mensagem honesta para comandos ainda não implementados.
 fn not_yet(name: &str, increment: u8, what: &str) -> Result<ExitCode> {
+    eprintln!("`dx {name}` is not implemented yet (planned for increment {increment}): {what}.");
     eprintln!(
-        "`dx {name}` ainda não está implementado (previsto no incremento {increment}): {what}."
+        "Meanwhile, invoking Cargo directly works but BYPASSES the DX gate (see docs/security.md)."
     );
-    eprintln!("Entretanto, invocar o Cargo directamente funciona mas CONTORNA o gate DX (ver docs/security.md).");
     Ok(ExitCode::from(3))
 }
 
@@ -423,11 +421,11 @@ fn not_yet(name: &str, increment: u8, what: &str) -> Result<ExitCode> {
 
 fn resolve_template(lib: bool, bin: bool, template: Option<&str>) -> Result<scaffold::Template> {
     if bin && lib {
-        bail!("escolhe `--lib` OU `--bin`, não ambos");
+        bail!("choose `--lib` OR `--bin`, not both");
     }
     match template {
         Some("seiva") => Ok(scaffold::Template::Seiva),
-        Some(other) => bail!("template desconhecido `{other}` (disponível: seiva)"),
+        Some(other) => bail!("unknown template `{other}` (available: seiva)"),
         None => Ok(if bin {
             scaffold::Template::Bin
         } else {
@@ -450,7 +448,7 @@ fn cmd_new(
             .map(|mut d| d.next().is_some())
             .unwrap_or(false)
     {
-        bail!("`{name}` já existe e não está vazio — não sobrescrevo trabalho existente");
+        bail!("`{name}` already exists and is not empty — refusing to overwrite existing work");
     }
     let plan = scaffold::plan_scaffold_template(&dir, scaffold::crate_base_name(name), tpl);
     apply_scaffold(&dir, plan, dry_run)
@@ -460,7 +458,7 @@ fn cmd_init(lib: bool, bin: bool, template: Option<&str>, dry_run: bool) -> Resu
     let tpl = resolve_template(lib, bin, template)?;
     let dir = Utf8PathBuf::from(".");
     if dir.join("Cargo.toml").exists() {
-        bail!("já existe um Cargo.toml aqui — `init` não sobrescreve");
+        bail!("a Cargo.toml already exists here — `init` does not overwrite");
     }
     let name = std::env::current_dir()
         .ok()
@@ -473,7 +471,7 @@ fn cmd_init(lib: bool, bin: bool, template: Option<&str>, dry_run: bool) -> Resu
 fn apply_scaffold(root: &Utf8Path, plan: Plan, dry_run: bool) -> Result<ExitCode> {
     print_plan(&plan);
     if dry_run {
-        eprintln!("(--dry-run: nada escrito)");
+        eprintln!("(--dry-run: nothing written)");
         return Ok(ExitCode::SUCCESS);
     }
     if plan.is_noop() {
@@ -486,7 +484,7 @@ fn apply_scaffold(root: &Utf8Path, plan: Plan, dry_run: bool) -> Result<ExitCode
             let p = Utf8PathBuf::from(path);
             if let Some(parent) = p.parent() {
                 std::fs::create_dir_all(parent)
-                    .with_context(|| format!("criar directório {parent}"))?;
+                    .with_context(|| format!("create directory {parent}"))?;
             }
             writes.push(FileWrite {
                 path: p,
@@ -494,8 +492,8 @@ fn apply_scaffold(root: &Utf8Path, plan: Plan, dry_run: bool) -> Result<ExitCode
             });
         }
     }
-    apply_transaction(root, &writes).context("aplicar scaffold")?;
-    eprintln!("✓ {} ficheiro(s) criado(s) em {root}", writes.len());
+    apply_transaction(root, &writes).context("apply scaffold")?;
+    eprintln!("\u{2713} {} file(s) created in {root}", writes.len());
     Ok(ExitCode::SUCCESS)
 }
 
@@ -528,8 +526,8 @@ fn cmd_add(a: AddArgs) -> Result<ExitCode> {
     // Defesa contra typosquatting de extensões/known crates: sugere, não troca.
     if let Some((suggestion, dist)) = suspect::suspect_typo(&name) {
         bail!(
-            "nome suspeito `{name}`: quis dizer `{suggestion}`? (distância {dist})\n\
-             Recuso instalar silenciosamente um package parecido — reexecuta com o nome exacto se for mesmo `{name}`."
+            "suspicious name `{name}`: did you mean `{suggestion}`? (distance {dist})\n\
+             Refusing to silently install a look-alike package — rerun with the exact name if you really mean `{name}`."
         );
     }
 
@@ -537,7 +535,7 @@ fn cmd_add(a: AddArgs) -> Result<ExitCode> {
         (true, false) => DepKind::Dev,
         (false, true) => DepKind::Build,
         (false, false) => DepKind::Normal,
-        (true, true) => bail!("`--dev` e `--build` são mutuamente exclusivos"),
+        (true, true) => bail!("`--dev` and `--build` are mutually exclusive"),
     };
 
     // Resolver a origem a partir das flags (git > path > registry).
@@ -561,8 +559,8 @@ fn cmd_add(a: AddArgs) -> Result<ExitCode> {
     // aterrar — resolver-e-aterrar sem avaliação violaria o contrato §5).
     if matches!(source, Source::Registry { .. }) && version_req.is_none() {
         bail!(
-            "dependência de registry `{name}` sem versão: usa `{name}@<req>` ou `--version` \
-             (a resolução automática de \"latest\" chega no inc.2, porque tem de passar pelo gate de segurança antes de aterrar)"
+            "registry dependency `{name}` without a version: use `{name}@<req>` or `--version` \
+             (automatic \"latest\" resolution must pass the security gate before landing)"
         );
     }
 
@@ -599,7 +597,7 @@ fn cmd_add(a: AddArgs) -> Result<ExitCode> {
     print_plan(&plan);
 
     if a.dry_run {
-        eprintln!("(--dry-run: nada escrito)");
+        eprintln!("(--dry-run: nothing written)");
         return Ok(ExitCode::SUCCESS);
     }
     if plan.is_noop() {
@@ -612,9 +610,9 @@ fn cmd_add(a: AddArgs) -> Result<ExitCode> {
     let mutated = manifest.to_toml_string();
 
     let commit = |m: &Manifest| -> Result<()> {
-        commit_manifest(&root, m).context("escrever Cargo.toml")?;
+        commit_manifest(&root, m).context("write Cargo.toml")?;
         eprintln!(
-            "✓ `{}` configurado em {manifest_path}",
+            "\u{2713} `{}` configured in {manifest_path}",
             spec.table_entry_key()
         );
         Ok(())
@@ -625,7 +623,7 @@ fn cmd_add(a: AddArgs) -> Result<ExitCode> {
             let policy = Policy::from_env();
             // Cache sob o projecto real; auditoria sobre o lockfile do staging.
             let outcome = run_gate(&root, &staging, &policy, security::now_unix())
-                .context("correr o gate de segurança (cargo-audit instalado?)")?;
+                .context("run the security gate (is cargo-audit installed?)")?;
             security::report_verdict(
                 &outcome.verdict,
                 &staging,
@@ -642,13 +640,13 @@ fn cmd_add(a: AddArgs) -> Result<ExitCode> {
                 }
                 Decision::Blocked => {
                     eprintln!(
-                        "✗ `{name}` NÃO aterrou: grafo candidato bloqueado. Manifesto inalterado."
+                        "\u{2717} `{name}` did NOT land: candidate graph blocked. Manifest unchanged."
                     );
                     Ok(ExitCode::from(outcome.verdict.decision.exit_code()))
                 }
                 Decision::Pending => {
                     eprintln!(
-                        "⏸ `{name}` NÃO aterrou: base de advisories inválida/expirada. Renova a base (`dx doctor`) e repete; o download pode ter ocorrido, o USO não está autorizado."
+                        "\u{23f8} `{name}` did NOT land: advisory base invalid/expired. Renew the base (`dx doctor`) and retry; the download may have happened, USE is not authorized."
                     );
                     Ok(ExitCode::from(outcome.verdict.decision.exit_code()))
                 }
@@ -659,7 +657,7 @@ fn cmd_add(a: AddArgs) -> Result<ExitCode> {
             // nada), mas o estado é NÃO-VERIFICADO e é preciso `dx audit`.
             commit(&manifest)?;
             eprintln!(
-                "⚠ gate pré-aterragem NÃO aplicado ({reason}). A dependência foi escrita, mas o grafo não foi avaliado em staging. Corre `dx audit` antes de compilar."
+                "\u{26a0} pre-landing gate NOT applied ({reason}). The dependency was written, but the graph was not evaluated in staging. Run `dx audit` before building."
             );
             if let Some(spec) = dx_seiva::known(&name) {
                 return seivacmd::integrate(&root, &manifest_path, &spec, false);
@@ -668,7 +666,7 @@ fn cmd_add(a: AddArgs) -> Result<ExitCode> {
         }
         stage::Staging::ResolveFailed { reason } => {
             eprintln!(
-                "erro: não consegui resolver o grafo candidato; manifesto inalterado.\n  {reason}"
+                "error: could not resolve the candidate graph; manifest unchanged.\n  {reason}"
             );
             Ok(ExitCode::FAILURE)
         }
@@ -686,7 +684,7 @@ fn cmd_remove(
         (true, false) => DepKind::Dev,
         (false, true) => DepKind::Build,
         (false, false) => DepKind::Normal,
-        (true, true) => bail!("`--dev` e `--build` são mutuamente exclusivos"),
+        (true, true) => bail!("`--dev` and `--build` are mutually exclusive"),
     };
     let (root, manifest_path) = locate_manifest(manifest_path.as_deref())?;
     recover(&root).ok();
@@ -698,7 +696,7 @@ fn cmd_remove(
     }
     print_plan(&plan);
     if dry_run {
-        eprintln!("(--dry-run: nada escrito)");
+        eprintln!("(--dry-run: nothing written)");
         return Ok(ExitCode::SUCCESS);
     }
     if plan.is_noop() {
@@ -706,7 +704,7 @@ fn cmd_remove(
     }
     manifest.remove(name, kind, None);
     commit_manifest(&root, &manifest).context("escrever Cargo.toml")?;
-    eprintln!("✓ `{name}` removido de {manifest_path}");
+    eprintln!("\u{2713} `{name}` removed from {manifest_path}");
     Ok(ExitCode::SUCCESS)
 }
 
@@ -725,23 +723,23 @@ fn locate_manifest(explicit: Option<&Utf8Path>) -> Result<(Utf8PathBuf, Utf8Path
         return Ok((root, p.to_owned()));
     }
     let cwd = std::env::current_dir().context("CWD")?;
-    let mut dir = Utf8PathBuf::from_path_buf(cwd).map_err(|_| anyhow::anyhow!("CWD não-UTF8"))?;
+    let mut dir = Utf8PathBuf::from_path_buf(cwd).map_err(|_| anyhow::anyhow!("non-UTF8 CWD"))?;
     loop {
         let candidate = dir.join("Cargo.toml");
         if candidate.exists() {
             return Ok((dir.clone(), candidate));
         }
         if !dir.pop() {
-            bail!("não encontrei um Cargo.toml a partir do directório actual");
+            bail!("no Cargo.toml found from the current directory");
         }
     }
 }
 
 fn print_plan(plan: &Plan) {
     if plan.is_noop() {
-        eprintln!("Plano: (sem alterações — já convergido)");
+        eprintln!("Plan: (no changes — already converged)");
     } else {
-        eprintln!("Plano ({} alteração(ões)):", plan.len());
+        eprintln!("Plan ({} change(s)):", plan.len());
         eprintln!("{plan}");
     }
 }
@@ -753,7 +751,7 @@ fn cargo_passthrough(args: &[String]) -> Result<ExitCode> {
     let status = Command::new(cargo)
         .args(args)
         .status()
-        .context("não consegui invocar o cargo")?;
+        .context("could not invoke cargo")?;
     match status.code() {
         Some(code) => Ok(ExitCode::from(code as u8)),
         None => Ok(ExitCode::from(130)), // terminado por sinal

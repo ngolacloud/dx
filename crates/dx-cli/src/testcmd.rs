@@ -12,13 +12,13 @@ use dx_report::{
 
 fn locate_root() -> Result<Utf8PathBuf> {
     let cwd = std::env::current_dir().context("CWD")?;
-    let mut dir = Utf8PathBuf::from_path_buf(cwd).map_err(|_| anyhow::anyhow!("CWD não-UTF8"))?;
+    let mut dir = Utf8PathBuf::from_path_buf(cwd).map_err(|_| anyhow::anyhow!("non-UTF8 CWD"))?;
     loop {
         if dir.join("Cargo.toml").exists() {
             return Ok(dir);
         }
         if !dir.pop() {
-            bail!("não encontrei um Cargo.toml a partir do directório actual");
+            bail!("no Cargo.toml found from the current directory");
         }
     }
 }
@@ -30,7 +30,7 @@ fn now_iso() -> String {
         .ok()
         .filter(|o| o.status.success())
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_else(|| "desconhecido".into())
+        .unwrap_or_else(|| "unknown".into())
 }
 
 pub fn cmd_test(
@@ -43,18 +43,18 @@ pub fn cmd_test(
     let name = suite_name.unwrap_or("unit");
     let fmt = match format {
         Some(f) => Format::parse(f)
-            .ok_or_else(|| anyhow::anyhow!("formato `{f}` inválido (terminal|json|junit|html)"))?,
+            .ok_or_else(|| anyhow::anyhow!("invalid format `{f}` (terminal|json|junit|html)"))?,
         None => Format::Terminal,
     };
 
     // Config: dx.toml do projecto (precedência) ou builtin.
     let dx_toml = std::fs::read_to_string(root.join("dx.toml").as_std_path()).ok();
     let cfg = resolve_suite(name, dx_toml.as_deref())
-        .map_err(|e| anyhow::anyhow!("dx.toml inválido: {e}"))?
+        .map_err(|e| anyhow::anyhow!("invalid dx.toml: {e}"))?
         .ok_or_else(|| {
             anyhow::anyhow!(
-                "suite `{name}` não está classificada: define-a em dx.toml ([test.suites.{name}]) \
-                 ou usa unit/doc/integration (contrato §8: não classifico suites por nome sem config)"
+                "suite `{name}` is not classified: define it in dx.toml ([test.suites.{name}]) \
+                 or use unit/doc/integration (we do not classify suites by name without config)"
             )
         })?;
 
@@ -67,7 +67,7 @@ pub fn cmd_test(
         Some(path) => {
             std::fs::write(path.as_std_path(), rendered.as_bytes())
                 .with_context(|| format!("escrever {path}"))?;
-            eprintln!("relatório {} escrito em {path}", fmt_label(fmt));
+            eprintln!("{} report written to {path}", fmt_label(fmt));
         }
         None => println!("{rendered}"),
     }
@@ -90,7 +90,7 @@ fn fmt_label(f: Format) -> &'static str {
 
 fn run_suite(root: &Utf8Path, cfg: &SuiteConfig) -> Result<Suite> {
     if cfg.runner.is_empty() {
-        bail!("suite `{}` sem runner", cfg.name);
+        bail!("suite `{}` has no runner", cfg.name);
     }
     let (prog, args) = (&cfg.runner[0], &cfg.runner[1..]);
     let start = Instant::now();
@@ -98,7 +98,7 @@ fn run_suite(root: &Utf8Path, cfg: &SuiteConfig) -> Result<Suite> {
         .args(args)
         .current_dir(root.as_std_path())
         .output()
-        .with_context(|| format!("invocar runner `{prog}`"))?;
+        .with_context(|| format!("invoke runner `{prog}`"))?;
     let dur = start.elapsed().as_millis() as u64;
     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
@@ -145,7 +145,7 @@ fn run_suite(root: &Utf8Path, cfg: &SuiteConfig) -> Result<Suite> {
             match std::fs::read_to_string(metrics_path.as_std_path()) {
                 Ok(text) => {
                     let metrics: LoadMetrics = serde_json::from_str(&text)
-                        .with_context(|| format!("métricas inválidas em {metrics_path}"))?;
+                        .with_context(|| format!("invalid metrics in {metrics_path}"))?;
                     let violations = eval_load(&thresholds, &metrics);
                     if violations.is_empty() {
                         suite.cases.push(Case {
@@ -177,10 +177,10 @@ fn run_suite(root: &Utf8Path, cfg: &SuiteConfig) -> Result<Suite> {
                         status: Status::NotRun,
                         duration_ms: None,
                         message: Some(format!(
-                            "sem métricas em {metrics_path} (o gerador deve escrevê-las)"
+                            "no metrics in {metrics_path} (the generator must write them)"
                         )),
                     });
-                    suite.runner_error = Some(format!("sem métricas de carga em {metrics_path}"));
+                    suite.runner_error = Some(format!("no load metrics in {metrics_path}"));
                     suite.ok = false;
                 }
             }

@@ -40,7 +40,7 @@ pub fn known(name: &str) -> Option<ExtensionSpec> {
             feature: None,
             use_line: None,
             register_line: "seiva_console_admin::register();",
-            summary: "regista a consola de administração na composição Seiva",
+            summary: "registers the admin console in the Seiva composition",
         }),
         _ => None,
     }

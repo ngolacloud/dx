@@ -9,9 +9,9 @@ use serde::Deserialize;
 
 #[derive(Debug, thiserror::Error)]
 pub enum LockError {
-    #[error("não consegui ler {0}")]
+    #[error("could not read {0}")]
     Read(String),
-    #[error("Cargo.lock inválido: {0}")]
+    #[error("invalid Cargo.lock: {0}")]
     Parse(String),
 }
 

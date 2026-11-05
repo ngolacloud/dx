@@ -31,7 +31,7 @@ fn resolve_once(root: &Utf8Path) -> Result<f64> {
     if !status.status.success() {
         // mock por path não precisa de rede; se falhar, reportar.
         anyhow::bail!(
-            "resolução falhou: {}",
+            "resolution failed: {}",
             String::from_utf8_lossy(&status.stderr)
         );
     }
@@ -59,17 +59,17 @@ pub fn cmd_bench(sizes_csv: Option<&str>, reps: usize) -> Result<ExitCode> {
     let reps = reps.max(1);
     let policy = Policy::from_env();
 
-    eprintln!("== dx bench (mock registry determinista; {reps} repetições) ==");
+    eprintln!("== dx bench (deterministic mock registry; {reps} repetitions) ==");
     eprintln!(
-        "Cobertura: resolução + gate (cache frio/quente). FORA: download real, rede rápida/lenta, amostra real (grafo por path não descarrega)."
+        "Coverage: resolution + gate (cold/warm cache). OUT: real download, fast/slow network, real sample (path graph does not download)."
     );
 
     let mut results = Vec::new();
     for &n in &sizes {
-        eprintln!("\n→ a gerar mock-workspace de {n} packages...");
+        eprintln!("\n-> generating mock workspace of {n} packages...");
         let tmp = tempfile::tempdir().context("temp")?;
-        let root = Utf8Path::from_path(tmp.path()).context("temp não-UTF8")?;
-        gen_mock_workspace(root, n).context("gerar mock")?;
+        let root = Utf8Path::from_path(tmp.path()).context("non-UTF8 temp")?;
+        gen_mock_workspace(root, n).context("generate mock")?;
 
         // Resolução (sempre fria: lockfile removido a cada rep).
         let mut resolve = Vec::new();
@@ -106,7 +106,7 @@ pub fn cmd_bench(sizes_csv: Option<&str>, reps: usize) -> Result<ExitCode> {
     // Tabela.
     eprintln!(
         "\n{:>6} | {:>18} | {:>18} | {:>18} | {:>12}",
-        "pkgs", "resolve p50/p95", "gate-frio p50/p95", "gate-quente p50/p95", "overhead"
+        "pkgs", "resolve p50/p95", "gate-cold p50/p95", "gate-warm p50/p95", "overhead"
     );
     for r in &results {
         eprintln!(
@@ -121,20 +121,20 @@ pub fn cmd_bench(sizes_csv: Option<&str>, reps: usize) -> Result<ExitCode> {
             r.warm_overhead_pct,
         );
     }
-    eprintln!("(tempos em ms; overhead = gate-quente p50 / resolução p50)");
+    eprintln!("(times in ms; overhead = gate-warm p50 / resolve p50)");
     eprintln!(
-        "Meta de engenharia: ≤10% de overhead em cache quente — OBJECTIVO, não garantia. As verificações NUNCA são desligadas para a cumprir."
+        "Engineering goal: <=10% warm-cache overhead — a GOAL, not a guarantee. Checks are NEVER disabled to meet it."
     );
     let worst = results
         .iter()
         .map(|r| r.warm_overhead_pct)
         .fold(0.0_f64, f64::max);
     eprintln!(
-        "Overhead quente máximo medido: {worst:.1}% ({}).",
+        "Max measured warm overhead: {worst:.1}% ({}).",
         if worst <= 10.0 {
-            "dentro da meta"
+            "within goal"
         } else {
-            "acima da meta — rever"
+            "above goal — review"
         }
     );
 

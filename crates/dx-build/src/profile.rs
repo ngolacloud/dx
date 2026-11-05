@@ -53,36 +53,36 @@ pub fn builtin(name: &str) -> Option<Profile> {
     Some(match name {
         "dev" => Profile {
             name: "dev",
-            description: "Compilação rápida, sem optimização (default Cargo).",
+            description: "Fast compile, no optimization (Cargo default).",
             cargo_profile: "dev",
             config_overrides: vec![],
-            note: "incremental; para iteração, não para medir performance.",
+            note: "incremental; for iteration, not for measuring performance.",
         },
         "release" => Profile {
             name: "release",
-            description: "Release equilibrada: opt-level 3, ThinLTO, cg=16.",
+            description: "Balanced release: opt-level 3, ThinLTO, cg=16.",
             cargo_profile: "release",
             config_overrides: vec![
                 "profile.release.opt-level=3".into(),
                 "profile.release.lto=\"thin\"".into(),
                 "profile.release.codegen-units=16".into(),
             ],
-            note: "default recomendado; preserva símbolos (sem strip).",
+            note: "recommended default; keeps symbols (no strip).",
         },
         "throughput" => Profile {
             name: "throughput",
-            description: "Máximo throughput: opt-level 3, fat-LTO, cg=1.",
+            description: "Maximum throughput: opt-level 3, fat-LTO, cg=1.",
             cargo_profile: "release",
             config_overrides: vec![
                 "profile.release.opt-level=3".into(),
                 "profile.release.lto=\"fat\"".into(),
                 "profile.release.codegen-units=1".into(),
             ],
-            note: "OPT-IN: fat-LTO+cg=1 é lento a compilar e NÃO é default.",
+            note: "OPT-IN: fat-LTO+cg=1 is slow to compile and is NOT the default.",
         },
         "size" => Profile {
             name: "size",
-            description: "Mínimo tamanho: opt-level z, ThinLTO, cg=1, strip.",
+            description: "Minimum size: opt-level z, ThinLTO, cg=1, strip.",
             cargo_profile: "release",
             config_overrides: vec![
                 "profile.release.opt-level=\"z\"".into(),
@@ -90,7 +90,7 @@ pub fn builtin(name: &str) -> Option<Profile> {
                 "profile.release.codegen-units=1".into(),
                 "profile.release.strip=\"symbols\"".into(),
             ],
-            note: "strip remove símbolos: pior diagnóstico em troca de tamanho.",
+            note: "strip removes symbols: worse diagnostics in exchange for size.",
         },
         _ => return None,
     })

@@ -31,25 +31,25 @@ pub fn integrate(
     dep_verified: bool,
 ) -> Result<ExitCode> {
     eprintln!(
-        "\n== adaptador Seiva: {} (protocolo v{}) ==",
+        "\n== Seiva adapter: {} (protocol v{}) ==",
         spec.crate_name, spec.protocol_version
     );
     eprintln!("  {}", spec.summary);
     if !dep_verified {
-        eprintln!("  nota: dependência aterrou NÃO-verificada pelo gate (corre `dx audit`).");
+        eprintln!("  note: dependency landed NOT verified by the gate (run `dx audit`).");
     }
 
     let manifest_text = std::fs::read_to_string(manifest_path.as_std_path())
-        .with_context(|| format!("ler {manifest_path}"))?;
+        .with_context(|| format!("read {manifest_path}"))?;
     let comp_rel = match composition_path(&manifest_text) {
         Some(p) => p,
         None => {
             // Composição NÃO gerida: não fingir integração (contrato §6).
             eprintln!(
-                "  composição não gerida (sem [package.metadata.dx.seiva].composition).\n\
-                 ESTADO PARCIAL: a dependência foi adicionada, mas a integração NÃO foi feita.\n\
-                 Para integrar: usa `dx new --template seiva` ou adiciona a um ficheiro de\n\
-                 composição as âncoras `// dx:seiva:register:begin/end` e a linha:\n\
+                "  unmanaged composition (no [package.metadata.dx.seiva].composition).\n\
+                 PARTIAL STATE: the dependency was added, but integration was NOT done.\n\
+                 To integrate: use `dx new --template seiva` or add to a composition\n\
+                 file the anchors `// dx:seiva:register:begin/end` and the line:\n\
                      {}",
                 spec.register_line
             );
@@ -59,13 +59,13 @@ pub fn integrate(
 
     let comp_path = root.join(&comp_rel);
     let src = std::fs::read_to_string(comp_path.as_std_path())
-        .with_context(|| format!("ler composição {comp_path}"))?;
+        .with_context(|| format!("read composition {comp_path}"))?;
     let result = dx_seiva::integrate(&src, spec);
 
     if !result.missing_anchors.is_empty() {
         eprintln!(
-            "  composição {comp_rel} sem as âncoras {:?}.\n\
-             ESTADO PARCIAL: patch pendente — acrescenta os marcadores e a linha:\n\
+            "  composition {comp_rel} missing anchors {:?}.\n\
+             PARTIAL STATE: pending patch — add the markers and the line:\n\
                  {}",
             result.missing_anchors, spec.register_line
         );
@@ -73,7 +73,7 @@ pub fn integrate(
     }
 
     if !result.changed {
-        eprintln!("  já integrado em {comp_rel} (idempotente — nada a fazer).");
+        eprintln!("  already integrated in {comp_rel} (idempotent — nothing to do).");
         return Ok(ExitCode::SUCCESS);
     }
 
@@ -85,9 +85,9 @@ pub fn integrate(
             new_contents: result.new_source,
         }],
     )
-    .context("escrever composição")?;
-    eprintln!("  ✓ integrado em {comp_rel} (âncora `register`).");
-    eprintln!("  ficheiros afectados: {manifest_path} (dependência), {comp_rel} (composição).");
-    eprintln!("  recompila para ligar: `dx build`. Sem permissões admin; sem passwords.");
+    .context("write composition")?;
+    eprintln!("  \u{2713} integrated in {comp_rel} (`register` anchor).");
+    eprintln!("  files affected: {manifest_path} (dependency), {comp_rel} (composition).");
+    eprintln!("  rebuild to wire it: `dx build`. No admin permissions; no passwords.");
     Ok(ExitCode::SUCCESS)
 }

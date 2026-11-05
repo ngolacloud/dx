@@ -11,7 +11,7 @@ use dx_manifest::Manifest;
 /// Localiza o Cargo.toml (subindo do CWD) e o nome do package.
 fn locate() -> Result<(Utf8PathBuf, Utf8PathBuf, Option<String>)> {
     let cwd = std::env::current_dir().context("CWD")?;
-    let mut dir = Utf8PathBuf::from_path_buf(cwd).map_err(|_| anyhow::anyhow!("CWD não-UTF8"))?;
+    let mut dir = Utf8PathBuf::from_path_buf(cwd).map_err(|_| anyhow::anyhow!("non-UTF8 CWD"))?;
     loop {
         let candidate = dir.join("Cargo.toml");
         if candidate.exists() {
@@ -21,7 +21,7 @@ fn locate() -> Result<(Utf8PathBuf, Utf8PathBuf, Option<String>)> {
             return Ok((dir.clone(), candidate, name));
         }
         if !dir.pop() {
-            bail!("não encontrei um Cargo.toml a partir do directório actual");
+            bail!("no Cargo.toml found from the current directory");
         }
     }
 }
@@ -44,15 +44,13 @@ fn binary_path(root: &Utf8Path, subdir: &str, pkg: &Option<String>) -> Option<Ut
 /// `dx build --profile <name> [--native] [--measure]`.
 pub fn cmd_build_profile(profile_name: &str, native: bool, do_measure: bool) -> Result<ExitCode> {
     let profile = builtin(profile_name).ok_or_else(|| {
-        anyhow::anyhow!(
-            "perfil desconhecido `{profile_name}` (usa: dev, release, throughput, size)"
-        )
+        anyhow::anyhow!("unknown profile `{profile_name}` (use: dev, release, throughput, size)")
     })?;
     let (root, _manifest, pkg) = locate()?;
 
     eprintln!("== dx build --profile {} ==", profile.name);
     eprintln!("  {}", profile.description);
-    eprintln!("  nota: {}", profile.note);
+    eprintln!("  note: {}", profile.note);
 
     let mut args = vec!["build".to_string()];
     args.extend(profile.cargo_args());
@@ -66,7 +64,7 @@ pub fn cmd_build_profile(profile_name: &str, native: bool, do_measure: bool) -> 
                 format!("{existing} {flag}").trim().to_string(),
             ));
             eprintln!(
-                "  AVISO: --native usa target-cpu=native — binário só corre nesta microarquitectura; NÃO usar em releases distribuídas."
+                "  WARNING: --native uses target-cpu=native — the binary only runs on this microarchitecture; do NOT use for distributed releases."
             );
         }
     }
@@ -96,7 +94,7 @@ pub fn cmd_bench_build(profiles_csv: Option<&str>) -> Result<ExitCode> {
     };
     let (root, _manifest, pkg) = locate()?;
     if !measure::gnu_time_available() {
-        eprintln!("(nota: /usr/bin/time ausente — memória máxima não será medida)");
+        eprintln!("(note: /usr/bin/time absent — peak memory will not be measured)");
     }
 
     let mut results = Vec::new();
@@ -104,7 +102,7 @@ pub fn cmd_bench_build(profiles_csv: Option<&str>) -> Result<ExitCode> {
         let profile: Profile = match builtin(name) {
             Some(p) => p,
             None => {
-                eprintln!("perfil desconhecido `{name}` — ignorado");
+                eprintln!("unknown profile `{name}` — ignored");
                 continue;
             }
         };
@@ -115,7 +113,7 @@ pub fn cmd_bench_build(profiles_csv: Option<&str>) -> Result<ExitCode> {
             .status();
         let mut args = vec!["build".to_string()];
         args.extend(profile.cargo_args());
-        eprintln!("→ a medir perfil `{name}` (build limpo)...");
+        eprintln!("-> measuring profile `{name}` (clean build)...");
         let mut m = run_measured(name, &cargo(), &args, &[], Some(&root))?;
         m.binary_bytes =
             binary_path(&root, profile.target_subdir(), &pkg).and_then(|p| measure::file_size(&p));
@@ -128,8 +126,8 @@ pub fn cmd_bench_build(profiles_csv: Option<&str>) -> Result<ExitCode> {
 fn report_measurements(ms: &[measure::Measurement]) {
     eprintln!();
     eprintln!(
-        "{:<12} {:>8} {:>12} {:>12}  binário",
-        "perfil", "ok", "tempo(s)", "mem(MiB)"
+        "{:<12} {:>8} {:>12} {:>12}  binary",
+        "profile", "ok", "time(s)", "mem(MiB)"
     );
     for m in ms {
         let mem = m
@@ -143,15 +141,13 @@ fn report_measurements(ms: &[measure::Measurement]) {
         eprintln!(
             "{:<12} {:>8} {:>12.2} {:>12}  {}",
             m.label,
-            if m.ok { "sim" } else { "FALHA" },
+            if m.ok { "yes" } else { "FAIL" },
             m.wall_secs,
             mem,
             bin
         );
     }
-    eprintln!(
-        "(tempo = relógio; mem = pico RSS via /usr/bin/time; binário = tamanho do artefacto)"
-    );
+    eprintln!("(time = wall clock; mem = peak RSS via /usr/bin/time; binary = artifact size)");
 }
 
 /// `dx pgo [--bin <nome>] [-- <workload args>]`: instrumentar → workload →
@@ -161,12 +157,12 @@ pub fn cmd_pgo(bin: Option<&str>, workload: &[String]) -> Result<ExitCode> {
     let bin_name = bin.map(str::to_string).or_else(|| pkg.clone());
     let bin_name = match bin_name {
         Some(n) => n,
-        None => bail!("não consegui determinar o binário; usa `--bin <nome>`"),
+        None => bail!("could not determine the binary; use `--bin <name>`"),
     };
 
     if pgo::profdata_tool().is_none() {
         bail!(
-            "llvm-profdata não encontrado. Instala `rustup component add llvm-tools-preview` ou garante /usr/bin/llvm-profdata com a MESMA versão de LLVM do rustc."
+            "llvm-profdata not found. Install `rustup component add llvm-tools-preview` or ensure /usr/bin/llvm-profdata matches the SAME LLVM version as rustc."
         );
     }
     let tool = pgo::profdata_tool().unwrap();
@@ -179,7 +175,7 @@ pub fn cmd_pgo(bin: Option<&str>, workload: &[String]) -> Result<ExitCode> {
     let merged = root.join("target/pgo/merged.profdata");
 
     // 1) Instrumentar (release).
-    eprintln!("1/4 a compilar instrumentado (-Cprofile-generate)...");
+    eprintln!("1/4 building instrumented (-Cprofile-generate)...");
     let gen_flags = pgo::rustflags_generate(&raw_dir);
     let status = run_with_env(
         &cargo(),
@@ -188,15 +184,15 @@ pub fn cmd_pgo(bin: Option<&str>, workload: &[String]) -> Result<ExitCode> {
         Some(&root),
     )?;
     if status != 0 {
-        bail!("build instrumentado falhou");
+        bail!("instrumented build failed");
     }
 
     // 2) Correr o workload para gerar .profraw.
     let bin_path = root.join("target/release").join(&bin_name);
     if !bin_path.exists() {
-        bail!("binário instrumentado não encontrado em {bin_path} (é um bin?)");
+        bail!("instrumented binary not found at {bin_path} (is it a bin?)");
     }
-    eprintln!("2/4 a correr o workload para gerar perfis...");
+    eprintln!("2/4 running the workload to generate profiles...");
     let (wprog, wargs) = if workload.is_empty() {
         (bin_path.to_string(), Vec::new())
     } else {
@@ -206,12 +202,12 @@ pub fn cmd_pgo(bin: Option<&str>, workload: &[String]) -> Result<ExitCode> {
     let size_instrumented = measure::file_size(&bin_path);
 
     // 3) Fundir perfis.
-    eprintln!("3/4 a fundir perfis (llvm-profdata merge)...");
-    let n = pgo::merge(&raw_dir, &merged).context("fusão de perfis PGO")?;
-    eprintln!("  {n} ficheiro(s) .profraw fundido(s) → {merged}");
+    eprintln!("3/4 merging profiles (llvm-profdata merge)...");
+    let n = pgo::merge(&raw_dir, &merged).context("PGO profile merge")?;
+    eprintln!("  {n} .profraw file(s) merged -> {merged}");
 
     // 4) Recompilar usando o perfil.
-    eprintln!("4/4 a recompilar com o perfil (-Cprofile-use)...");
+    eprintln!("4/4 rebuilding with the profile (-Cprofile-use)...");
     let use_flags = pgo::rustflags_use(&merged);
     let status = run_with_env(
         &cargo(),
@@ -220,25 +216,23 @@ pub fn cmd_pgo(bin: Option<&str>, workload: &[String]) -> Result<ExitCode> {
         Some(&root),
     )?;
     if status != 0 {
-        bail!("build com perfil falhou (perfil incompatível com o código/toolchain?)");
+        bail!("profiled build failed (profile incompatible with the code/toolchain?)");
     }
     let size_optimized = measure::file_size(&bin_path);
 
     eprintln!();
-    eprintln!("PGO concluído. Tamanho do binário:");
+    eprintln!("PGO complete. Binary size:");
     eprintln!(
-        "  instrumentado: {}",
+        "  instrumented: {}",
         size_instrumented
             .map(fmt_bytes)
             .unwrap_or_else(|| "-".into())
     );
     eprintln!(
-        "  com perfil:    {}",
+        "  profiled:     {}",
         size_optimized.map(fmt_bytes).unwrap_or_else(|| "-".into())
     );
-    eprintln!(
-        "(para ganho de performance, medir o serviço com uma carga representativa — ver inc.3/§9)"
-    );
+    eprintln!("(for a performance gain, measure the service under a representative load — see §9)");
     Ok(ExitCode::SUCCESS)
 }
 
@@ -261,6 +255,6 @@ fn run_with_env(
     if let Some(c) = cwd {
         cmd.current_dir(c.as_std_path());
     }
-    let status = cmd.status().with_context(|| format!("invocar {program}"))?;
+    let status = cmd.status().with_context(|| format!("invoke {program}"))?;
     Ok(status.code().unwrap_or(1))
 }

@@ -36,7 +36,7 @@ pub fn impact(
 ) -> Result<ExitCode> {
     eprintln!("== dx add --plan: {} ==", spec.table_entry_key());
     eprintln!(
-        "Mudança no manifesto ({manifest_path}): {} = {} [{}]",
+        "Manifest change ({manifest_path}): {} = {} [{}]",
         spec.table_entry_key(),
         spec.version_req.as_deref().unwrap_or("*"),
         spec.source
@@ -47,7 +47,15 @@ pub fn impact(
     match stage::resolve_candidate(root, mutated_toml, offline) {
         stage::Staging::Resolved { root: staging, .. } => {
             let after = all_packages(&staging.join("Cargo.lock")).unwrap_or_default();
-            let added = diff_added(&before, &after);
+            // Exclude the root package itself (it is not a dependency being
+            // introduced; it shows up only when there was no prior lockfile).
+            let root_pkg = dx_manifest::Manifest::load(manifest_path)
+                .ok()
+                .and_then(|m| m.package_name().map(str::to_string));
+            let added: Vec<PackageEntry> = diff_added(&before, &after)
+                .into_iter()
+                .filter(|p| Some(&p.name) != root_pkg.as_ref())
+                .collect();
             let attrs = metadata_attrs(&staging);
 
             print_graph(spec, &added, &attrs);
@@ -58,28 +66,28 @@ pub fn impact(
             // Segurança: corre o gate sobre o grafo candidato.
             let policy = Policy::from_env();
             let outcome = run_gate(root, &staging, &policy, security::now_unix())
-                .context("gate sobre o grafo candidato")?;
+                .context("gate over the candidate graph")?;
             let v = &outcome.verdict;
-            eprintln!("\nSegurança (grafo candidato):");
+            eprintln!("\nSecurity (candidate graph):");
             eprintln!(
                 "  scanners: cargo-audit{}",
                 if outcome.deny_covered {
                     " + cargo-deny"
                 } else {
-                    " (cargo-deny ausente)"
+                    " (cargo-deny absent)"
                 }
             );
             if v.findings.is_empty() {
-                eprintln!("  achados: nenhum conhecido (NÃO é prova de benignidade).");
+                eprintln!("  findings: none known (NOT proof of benignity).");
             } else {
                 eprintln!(
-                    "  achados: {} (bloqueiam: {})",
+                    "  findings: {} (blocking: {})",
                     v.findings.len(),
                     v.blocking.len()
                 );
                 for (i, f) in v.findings.iter().enumerate() {
                     if i == 6 {
-                        eprintln!("    … e mais {}", v.findings.len() - 6);
+                        eprintln!("    \u{2026} and {} more", v.findings.len() - 6);
                         break;
                     }
                     eprintln!(
@@ -92,25 +100,25 @@ pub fn impact(
                 }
             }
             let decision = match v.decision {
-                Decision::Approved => "APROVADO (aterraria)",
-                Decision::Blocked => "BLOQUEADO (não aterraria)",
-                Decision::Pending => "PENDENTE (base expirada; não aterraria)",
+                Decision::Approved => "APPROVED (would land)",
+                Decision::Blocked => "BLOCKED (would not land)",
+                Decision::Pending => "PENDING (base expired; would not land)",
             };
-            eprintln!("  decisão: {decision} — {}", v.db_status.detail);
+            eprintln!("  decision: {decision} — {}", v.db_status.detail);
 
-            eprintln!("\n(plano: nada foi escrito. Para aplicar: repete sem --plan.)");
+            eprintln!("\n(plan: nothing was written. To apply: rerun without --plan.)");
             Ok(ExitCode::SUCCESS)
         }
         stage::Staging::NotApplicable { reason } => {
             eprintln!(
-                "\nGrafo não analisável nesta forma de projecto ({reason}).\n\
-                 O plano cobre a mudança de manifesto acima; corre `dx audit` após aterrar \
-                 para avaliar o grafo. (Impacto completo requer manifesto auto-contido.)"
+                "\nGraph not analyzable for this project shape ({reason}).\n\
+                 The plan covers the manifest change above; run `dx audit` after landing \
+                 to evaluate the graph. (Full impact requires a self-contained manifest.)"
             );
             Ok(ExitCode::from(6))
         }
         stage::Staging::ResolveFailed { reason } => {
-            eprintln!("\nerro: não consegui resolver o grafo candidato:\n  {reason}");
+            eprintln!("\nerror: could not resolve the candidate graph:\n  {reason}");
             Ok(ExitCode::FAILURE)
         }
     }
@@ -118,16 +126,16 @@ pub fn impact(
 
 fn print_graph(spec: &DepSpec, added: &[PackageEntry], _attrs: &BTreeMap<String, PkgAttrs>) {
     if added.is_empty() {
-        eprintln!("\nGrafo: nenhum package novo (já presente ou sem novas transitivas).");
+        eprintln!("\nGraph: no new package (already present or no new transitives).");
         return;
     }
     let direct = &spec.name;
-    eprintln!("\nPackages NOVOS no grafo ({}):", added.len());
+    eprintln!("\nNEW packages in the graph ({}):", added.len());
     for p in added {
         let kind = if &p.name == direct {
-            "directa"
+            "direct"
         } else {
-            "transitiva"
+            "transitive"
         };
         eprintln!("  + {}@{} ({kind})", p.name, p.version);
     }
@@ -150,10 +158,10 @@ fn print_execution_surfaces(added: &[PackageEntry], attrs: &BTreeMap<String, Pkg
             }
         }
     }
-    eprintln!("\nSuperfícies de EXECUÇÃO durante o build (reveem-se com atenção):");
+    eprintln!("\nEXECUTION surfaces during the build (review with care):");
     eprintln!("  build.rs:     {}", list_or_none(&build_rs));
     eprintln!("  proc-macros:  {}", list_or_none(&procm));
-    eprintln!("  nativo/links: {}", list_or_none(&native));
+    eprintln!("  native/links: {}", list_or_none(&native));
 }
 
 fn print_msrv(added: &[PackageEntry], attrs: &BTreeMap<String, PkgAttrs>) {
@@ -168,8 +176,8 @@ fn print_msrv(added: &[PackageEntry], attrs: &BTreeMap<String, PkgAttrs>) {
         }
     }
     match max {
-        Some(rv) => eprintln!("\nMSRV exigido pelos novos packages: >= {rv}"),
-        None => eprintln!("\nMSRV: nenhum novo package declara rust-version."),
+        Some(rv) => eprintln!("\nMSRV required by new packages: >= {rv}"),
+        None => eprintln!("\nMSRV: no new package declares rust-version."),
     }
 }
 
@@ -191,14 +199,14 @@ fn print_download(added: &[PackageEntry]) {
         }
     }
     eprintln!(
-        "\nDownload: {cached} já em cache, {fresh} novos a descarregar \
-         (tamanhos não estimados — não inventamos bytes)."
+        "\nDownload: {cached} already cached, {fresh} new to download \
+         (sizes not estimated — we do not invent bytes)."
     );
 }
 
 fn list_or_none(v: &[String]) -> String {
     if v.is_empty() {
-        "nenhum".into()
+        "none".into()
     } else {
         v.join(", ")
     }

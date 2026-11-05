@@ -24,7 +24,7 @@ pub fn now_unix() -> u64 {
 pub fn cmd_audit(root: &Utf8Path) -> Result<ExitCode> {
     let policy = Policy::from_env();
     let outcome = run_gate(root, root, &policy, now_unix())
-        .context("correr o gate de segurança (cargo-audit instalado?)")?;
+        .context("run the security gate (is cargo-audit installed?)")?;
     report_verdict(
         &outcome.verdict,
         root,
@@ -38,38 +38,38 @@ pub fn cmd_audit(root: &Utf8Path) -> Result<ExitCode> {
 /// `cargo tree -i` para o caminho de dependências (o directório que tem o
 /// Cargo.lock avaliado — projecto real ou staging).
 pub fn report_verdict(v: &Verdict, tree_dir: &Utf8Path, from_cache: bool, deny_covered: bool) {
-    eprintln!("== Gate de segurança DX ==");
+    eprintln!("== DX security gate ==");
     eprintln!(
         "Scanners: cargo-audit (advisories) + cargo-deny {}",
         if deny_covered {
-            "(licenças/origens/bans)"
+            "(licenses/sources/bans)"
         } else {
-            "— AUSENTE: licenças/origens/bans SEM cobertura"
+            "— ABSENT: licenses/sources/bans NOT covered"
         }
     );
     eprintln!(
-        "Base de advisories: {} ({})",
+        "Advisory base: {} ({})",
         if v.db_status.valid {
-            "válida"
+            "valid"
         } else {
-            "INVÁLIDA/EXPIRADA"
+            "INVALID/EXPIRED"
         },
         v.db_status.detail
     );
     if from_cache {
-        eprintln!("(veredicto reutilizado do cache — chave válida; nenhum redownload)");
+        eprintln!("(verdict reused from cache — valid key; no re-download)");
     }
 
     if v.findings.is_empty() {
-        eprintln!("Achados: nenhum.");
+        eprintln!("Findings: none.");
     } else {
-        eprintln!("Achados ({}):", v.findings.len());
+        eprintln!("Findings ({}):", v.findings.len());
         for (i, f) in v.findings.iter().enumerate() {
             let blocks = v.blocking.contains(&i);
             print_finding(f, blocks);
             if blocks {
                 if let Some(path) = inverse_dependency_path(tree_dir, &f.package, &f.version) {
-                    eprintln!("      caminho:");
+                    eprintln!("      path:");
                     for line in path.lines() {
                         eprintln!("        {line}");
                     }
@@ -81,18 +81,18 @@ pub fn report_verdict(v: &Verdict, tree_dir: &Utf8Path, from_cache: bool, deny_c
     eprintln!();
     match v.decision {
         Decision::Approved => {
-            eprintln!("Decisão: APROVADO ✓ (grafo sem vulnerabilidades conhecidas e base válida)")
+            eprintln!("Decision: APPROVED \u{2713} (graph with no known vulnerabilities and valid base)")
         }
         Decision::Blocked => eprintln!(
-            "Decisão: BLOQUEADO ✗ — {} achado(s) a bloquear.",
+            "Decision: BLOCKED \u{2717} — {} blocking finding(s).",
             v.blocking.len()
         ),
         Decision::Pending => eprintln!(
-            "Decisão: PENDENTE — base expirada/indisponível. O download pode terminar, mas o USO não está autorizado até renovar a base (ver `dx doctor`)."
+            "Decision: PENDING — base expired/unavailable. The download may finish, but USE is not authorized until the base is renewed (see `dx doctor`)."
         ),
     }
     eprintln!(
-        "Nota honesta: ausência de achado é apenas ausência de vulnerabilidade CONHECIDA nesta base/instante — não é prova de benignidade."
+        "Honest note: absence of findings is only absence of KNOWN vulnerabilities for this base/instant — not proof of benignity."
     );
 }
 
@@ -123,15 +123,15 @@ pub fn cmd_doctor() -> Result<ExitCode> {
     eprintln!(
         "cargo-deny: {}",
         if dx_security::deny::available() {
-            "presente (licenças/origens/bans)"
+            "present (licenses/sources/bans)"
         } else {
-            "AUSENTE — instalar p/ cobrir licenças/origens/bans"
+            "ABSENT — install to cover licenses/sources/bans"
         }
     );
 
     let caps = dx_sandbox::Capabilities::detect();
     eprintln!(
-        "isolamento ({}): rede={} rlimits={} filesystem={} (FS não imposto nesta versão)",
+        "isolation ({}): network={} rlimits={} filesystem={} (FS not enforced in this version)",
         caps.platform, caps.network_isolation, caps.resource_limits, caps.filesystem_isolation
     );
 
@@ -140,17 +140,17 @@ pub fn cmd_doctor() -> Result<ExitCode> {
     let status = db::evaluate(&db_path, now_unix(), policy.max_db_age_secs);
     eprintln!("advisory-db: {}", status.path);
     eprintln!(
-        "  estado: {} — {}",
-        if status.valid { "válida" } else { "INVÁLIDA" },
+        "  state: {} — {}",
+        if status.valid { "valid" } else { "INVALID" },
         status.detail
     );
     eprintln!(
-        "política (baseline): vulnerability=block, malware=block, integrity=block, source-not-allowed=block, yanked=warn, unmaintained=warn; validade dev={}h",
+        "policy (baseline): vulnerability=block, malware=block, integrity=block, source-not-allowed=block, yanked=warn, unmaintained=warn; dev validity={}h",
         policy.max_db_age_secs / 3600
     );
     if !status.valid {
         eprintln!(
-            "sugestão: renovar a base com `cargo audit fetch` (ou `git -C {} pull`) e repetir.",
+            "suggestion: renew the base with `cargo audit fetch` (or `git -C {} pull`) and retry.",
             status.path
         );
         return Ok(ExitCode::from(5));
@@ -164,7 +164,7 @@ pub fn cmd_fetch(root: &Utf8Path, locked: bool, extract_check: bool) -> Result<E
     let lockfile = root.join("Cargo.lock");
     if !lockfile.exists() {
         if locked {
-            anyhow::bail!("--locked: não há Cargo.lock em {root}");
+            anyhow::bail!("--locked: no Cargo.lock in {root}");
         }
         eprintln!("sem Cargo.lock em {root} — nada para verificar (corre `cargo generate-lockfile` ou `dx add`).");
         return Ok(ExitCode::SUCCESS);
@@ -174,11 +174,11 @@ pub fn cmd_fetch(root: &Utf8Path, locked: bool, extract_check: bool) -> Result<E
     let report = dx_integrity::verify_lockfile(&lockfile, &limits, extract_check)
         .context("verificar integridade do lockfile")?;
 
-    eprintln!("== dx fetch: integridade do grafo bloqueado ==");
+    eprintln!("== dx fetch: integrity of the locked graph ==");
     eprintln!(
         "Verificados (checksum bate){}: {}",
         if extract_check {
-            " + extracção segura"
+            " + safe extraction"
         } else {
             ""
         },
@@ -186,7 +186,7 @@ pub fn cmd_fetch(root: &Utf8Path, locked: bool, extract_check: bool) -> Result<E
     );
     if !report.missing.is_empty() {
         eprintln!(
-            "Sem cobertura ({} não descarregados — SEM correspondência conhecida, nunca \"íntegros\"):",
+            "Not covered ({} not downloaded — NO known match, never \"intact\"):",
             report.missing.len()
         );
         for m in &report.missing {
@@ -194,20 +194,22 @@ pub fn cmd_fetch(root: &Utf8Path, locked: bool, extract_check: bool) -> Result<E
         }
     }
     for e in &report.mismatched {
-        eprintln!("  [BLOQUEIA] integridade: {e}");
+        eprintln!("  [BLOCKS] integrity: {e}");
     }
     for (label, e) in &report.extract_failures {
-        eprintln!("  [BLOQUEIA] extracção insegura em {label}: {e}");
+        eprintln!("  [BLOCKS] unsafe extraction in {label}: {e}");
     }
 
     if report.has_failure() {
         eprintln!(
-            "\nDecisão: BLOQUEADO ✗ — {} falha(s) de integridade/extracção. Nada segue para build.",
+            "\nDecision: BLOCKED \u{2717} — {} integrity/extraction failure(s). Nothing proceeds to build.",
             report.mismatched.len() + report.extract_failures.len()
         );
         Ok(ExitCode::from(4))
     } else {
-        eprintln!("\nDecisão: integridade OK para o que está em cache (checksum prova origem, não benignidade).");
+        eprintln!(
+            "\nDecision: integrity OK for what is cached (checksum proves origin, not benignity)."
+        );
         Ok(ExitCode::SUCCESS)
     }
 }
@@ -237,25 +239,25 @@ pub fn cmd_build_isolated(release: bool) -> Result<ExitCode> {
     eprintln!("== dx build --isolated ==");
     if spec.deny_network && !caps.network_isolation {
         eprintln!(
-            "AVISO: isolamento de rede PEDIDO mas INDISPONÍVEL neste host (sem user+net namespace). Não finjo isolamento."
+            "WARNING: network isolation REQUESTED but UNAVAILABLE on this host (no user+net namespace). Not faking isolation."
         );
     }
 
-    let outcome = run(&spec, &cargo, &args, &caps).context("correr build isolado")?;
+    let outcome = run(&spec, &cargo, &args, &caps).context("run isolated build")?;
     let e = &outcome.enforced;
-    eprintln!("Imposto:");
+    eprintln!("Enforced:");
     eprintln!(
-        "  rede isolada: {} — {}",
+        "  network isolated: {} — {}",
         e.network_isolated, e.network_mechanism
     );
     eprintln!(
-        "  ambiente sem segredos: {} (passadas: {})",
+        "  environment without secrets: {} (passed: {})",
         e.env_scrubbed,
         e.env_kept.join(", ")
     );
-    eprintln!("  limites: {}", e.rlimits_applied.join(", "));
+    eprintln!("  limits: {}", e.rlimits_applied.join(", "));
     eprintln!(
-        "  filesystem isolado: {} — {}",
+        "  filesystem isolated: {} — {}",
         e.filesystem_isolated, e.filesystem_note
     );
     Ok(ExitCode::from(outcome.code.unwrap_or(1) as u8))
@@ -266,6 +268,6 @@ fn tool_version(bin: &str, args: &[&str]) {
         Ok(o) if o.status.success() => {
             eprintln!("{bin}: {}", String::from_utf8_lossy(&o.stdout).trim())
         }
-        _ => eprintln!("{bin}: NÃO ENCONTRADO"),
+        _ => eprintln!("{bin}: NOT FOUND"),
     }
 }

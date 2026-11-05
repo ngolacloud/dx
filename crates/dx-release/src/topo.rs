@@ -15,7 +15,7 @@ pub struct Member {
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum TopoError {
-    #[error("ciclo de dependências entre membros: {0:?}")]
+    #[error("dependency cycle among members: {0:?}")]
     Cycle(Vec<String>),
 }
 

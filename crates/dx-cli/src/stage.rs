@@ -33,13 +33,13 @@ pub enum Staging {
 /// Heurística de auto-contenção do manifesto mutado.
 fn self_contained(toml: &str) -> Result<(), String> {
     if toml.contains("[workspace]") || toml.contains("workspace.dependencies") {
-        return Err("manifesto de/para workspace".into());
+        return Err("workspace manifest".into());
     }
     if toml.contains(".workspace = true") || toml.contains("workspace = true") {
-        return Err("usa herança de workspace (`.workspace = true`)".into());
+        return Err("uses workspace inheritance (`.workspace = true`)".into());
     }
     if toml.contains("path = ") || toml.contains("path.workspace") {
-        return Err("tem dependências `path` (relativas quebram no staging)".into());
+        return Err("has `path` dependencies (relative paths break in staging)".into());
     }
     Ok(())
 }
@@ -55,7 +55,7 @@ pub fn resolve_candidate(project_root: &Utf8Path, mutated_toml: &str, offline: b
         Ok(d) => d,
         Err(e) => {
             return Staging::ResolveFailed {
-                reason: format!("não consegui criar staging: {e}"),
+                reason: format!("could not create staging: {e}"),
             }
         }
     };
@@ -63,14 +63,14 @@ pub fn resolve_candidate(project_root: &Utf8Path, mutated_toml: &str, offline: b
         Some(p) => p.to_owned(),
         None => {
             return Staging::ResolveFailed {
-                reason: "caminho de staging não-UTF8".into(),
+                reason: "non-UTF8 staging path".into(),
             }
         }
     };
 
     if let Err(e) = std::fs::write(root.join("Cargo.toml"), mutated_toml) {
         return Staging::ResolveFailed {
-            reason: format!("escrever manifesto de staging: {e}"),
+            reason: format!("write staging manifest: {e}"),
         };
     }
     // Um src/ mínimo para o Cargo aceitar o manifesto ao resolver.
@@ -97,7 +97,7 @@ pub fn resolve_candidate(project_root: &Utf8Path, mutated_toml: &str, offline: b
             reason: String::from_utf8_lossy(&o.stderr).trim().to_string(),
         },
         Err(e) => Staging::ResolveFailed {
-            reason: format!("não consegui invocar `cargo generate-lockfile`: {e}"),
+            reason: format!("could not invoke `cargo generate-lockfile`: {e}"),
         },
     }
 }

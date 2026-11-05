@@ -9,9 +9,9 @@ pub enum DxError {
     /// A dependência pedida existe mas com uma origem diferente da configurada.
     /// Mudar de origem é sempre explícito — nunca um efeito lateral de `add`.
     #[error(
-        "a dependência `{name}` já está configurada com origem diferente \
-         (configurada: {existing}; pedida: {requested}); \
-         mudar de origem exige remoção explícita primeiro"
+        "dependency `{name}` is already configured with a different source \
+         (configured: {existing}; requested: {requested}); \
+         changing the source requires removing it explicitly first"
     )]
     SourceConflict {
         name: String,
@@ -21,7 +21,7 @@ pub enum DxError {
 
     /// Nome de package que parece erro de escrita de um nome conhecido.
     /// Nunca instalar silenciosamente o parecido — sugere a correcção.
-    #[error("nome suspeito `{typo}`: quis dizer `{suggestion}`? (distância de edição {distance})")]
+    #[error("suspicious name `{typo}`: did you mean `{suggestion}`? (edit distance {distance})")]
     SuspiciousName {
         typo: String,
         suggestion: String,
@@ -29,15 +29,15 @@ pub enum DxError {
     },
 
     /// Falta informação para identificar inequivocamente um package.
-    #[error("identificação ambígua de `{name}`: {reason}")]
+    #[error("ambiguous identification of `{name}`: {reason}")]
     AmbiguousPackage { name: String, reason: String },
 
     /// Pediu-se uma versão de registry mas não foi possível resolver.
-    #[error("sem versão para `{name}`: {reason}")]
+    #[error("no version for `{name}`: {reason}")]
     UnresolvedVersion { name: String, reason: String },
 
     /// Especificação malformada vinda da CLI.
-    #[error("especificação inválida: {0}")]
+    #[error("invalid specification: {0}")]
     InvalidSpec(String),
 }
 

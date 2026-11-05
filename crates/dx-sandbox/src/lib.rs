@@ -140,7 +140,7 @@ pub struct SandboxOutcome {
 
 #[derive(Debug, thiserror::Error)]
 pub enum SandboxError {
-    #[error("falha ao lançar o processo isolado: {0}")]
+    #[error("failed to spawn isolated process: {0}")]
     Spawn(#[from] std::io::Error),
 }
 
@@ -192,11 +192,11 @@ pub fn run(
     let rlimits_applied = apply_rlimits(&mut cmd, &spec.limits);
 
     let network_mechanism = if net_enforced {
-        "unshare(CLONE_NEWUSER|CLONE_NEWNET) — só loopback".to_string()
+        "unshare(CLONE_NEWUSER|CLONE_NEWNET) — loopback only".to_string()
     } else if want_net {
-        "PEDIDO mas NÃO imposto: user+net namespace indisponível no host".to_string()
+        "REQUESTED but NOT enforced: user+net namespace unavailable on host".to_string()
     } else {
-        "rede permitida (não pedido isolamento)".to_string()
+        "network allowed (isolation not requested)".to_string()
     };
 
     let status = cmd.status()?;
@@ -210,7 +210,7 @@ pub fn run(
             env_kept,
             rlimits_applied,
             filesystem_isolated: false,
-            filesystem_note: "NÃO imposto nesta versão (sem mount namespace/FS mínimo)".into(),
+            filesystem_note: "NOT enforced in this version (no mount namespace/minimal FS)".into(),
         },
     })
 }

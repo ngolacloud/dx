@@ -12,12 +12,12 @@ use toml_edit::{Array, DocumentMut, Formatted, InlineTable, Item, Table, Value};
 /// Erros de I/O/parse do manifesto (distintos dos erros de domínio em dx-core).
 #[derive(Debug, thiserror::Error)]
 pub enum ManifestError {
-    #[error("não foi possível ler {path}: {source}")]
+    #[error("could not read {path}: {source}")]
     Read {
         path: Utf8PathBuf,
         source: std::io::Error,
     },
-    #[error("Cargo.toml inválido em {path}: {source}")]
+    #[error("invalid Cargo.toml at {path}: {source}")]
     Parse {
         path: Utf8PathBuf,
         source: toml_edit::TomlError,
@@ -183,7 +183,7 @@ fn sub_table<'a>(parent: &'a mut Table, key: &str) -> &'a mut Table {
         .entry(key)
         .or_insert_with(|| Item::Table(Table::new()))
         .as_table_mut()
-        .expect("chave de tabela")
+        .expect("table key")
 }
 
 fn dep_table<'a>(parent: &'a mut Table, key: &str) -> &'a mut Table {

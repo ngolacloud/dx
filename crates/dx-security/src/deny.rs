@@ -21,7 +21,7 @@ pub const DEFAULT_DENY_TOML: &str = include_str!("../assets/default-deny.toml");
 
 #[derive(Debug, thiserror::Error)]
 pub enum DenyError {
-    #[error("não consegui invocar `cargo deny`: {0}")]
+    #[error("could not run `cargo deny`: {0}")]
     Spawn(#[from] std::io::Error),
 }
 
@@ -104,7 +104,7 @@ fn parse_ndjson(text: &str) -> Vec<Finding> {
         let message = fields
             .get("message")
             .and_then(|m| m.as_str())
-            .unwrap_or("(sem mensagem)")
+            .unwrap_or("(no message)")
             .to_string();
         let code = fields.get("code").and_then(|c| c.as_str()).unwrap_or("");
         let (pkg, ver) = root_krate(fields);

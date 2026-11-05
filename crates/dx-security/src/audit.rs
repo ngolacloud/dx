@@ -26,11 +26,11 @@ pub struct Finding {
 
 #[derive(Debug, thiserror::Error)]
 pub enum AuditError {
-    #[error("não consegui invocar `cargo audit` (instalado?): {0}")]
+    #[error("could not run `cargo audit` (installed?): {0}")]
     Spawn(#[from] std::io::Error),
-    #[error("`cargo audit` falhou a correr (código {code:?}); stderr:\n{stderr}")]
+    #[error("`cargo audit` failed to run (code {code:?}); stderr:\n{stderr}")]
     Run { code: Option<i32>, stderr: String },
-    #[error("saída do `cargo audit` não é JSON válido: {0}")]
+    #[error("`cargo audit` output is not valid JSON: {0}")]
     Json(#[from] serde_json::Error),
 }
 
@@ -49,7 +49,7 @@ pub fn scanner_version() -> String {
                 .ok()
                 .filter(|o| o.status.success())
                 .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-                .unwrap_or_else(|| "desconhecida".into())
+                .unwrap_or_else(|| "unknown".into())
         })
         .clone()
 }
@@ -126,7 +126,7 @@ fn finding_from(item: &serde_json::Value, category: Category) -> Finding {
         title: advisory
             .and_then(|a| a.get("title"))
             .and_then(|t| t.as_str())
-            .unwrap_or("(sem título)")
+            .unwrap_or("(no title)")
             .to_string(),
         url: advisory
             .and_then(|a| a.get("url"))

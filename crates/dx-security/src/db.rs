@@ -74,7 +74,7 @@ pub fn evaluate(db_path: &Utf8Path, now_unix: u64, max_age_secs: u64) -> DbStatu
             age_secs: None,
             max_age_secs,
             valid: false,
-            detail: format!("base ausente em {db_path} — correr um refresh antes de usar"),
+            detail: format!("advisory base missing at {db_path} — run a refresh before using"),
         };
     }
     match git_head_commit_unix(db_path) {
@@ -83,13 +83,13 @@ pub fn evaluate(db_path: &Utf8Path, now_unix: u64, max_age_secs: u64) -> DbStatu
             let valid = age <= max_age_secs;
             let detail = if valid {
                 format!(
-                    "base com {}h (dentro de {}h)",
+                    "base is {}h old (within {}h)",
                     age / 3600,
                     max_age_secs / 3600
                 )
             } else {
                 format!(
-                    "base com {}h — EXPIRADA (máx {}h); renovar antes de autorizar",
+                    "base is {}h old — EXPIRED (max {}h); renew before authorizing",
                     age / 3600,
                     max_age_secs / 3600
                 )
@@ -109,9 +109,7 @@ pub fn evaluate(db_path: &Utf8Path, now_unix: u64, max_age_secs: u64) -> DbStatu
             age_secs: None,
             max_age_secs,
             valid: false,
-            detail: format!(
-                "não consegui ler o commit HEAD de {db_path} (git?) — trato como inválida"
-            ),
+            detail: format!("could not read HEAD commit of {db_path} (git?) — treating as invalid"),
         },
     }
 }

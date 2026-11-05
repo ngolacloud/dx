@@ -81,6 +81,6 @@ pub fn verify_lockfile(
 fn extract_check_one(crate_path: &Utf8Path, limits: &Limits) -> Result<(), ExtractError> {
     let tmp = tempfile::tempdir().map_err(|e| ExtractError::Io(e.to_string()))?;
     let dest =
-        Utf8Path::from_path(tmp.path()).ok_or_else(|| ExtractError::Io("temp não-UTF8".into()))?;
+        Utf8Path::from_path(tmp.path()).ok_or_else(|| ExtractError::Io("non-UTF8 temp".into()))?;
     safe_unpack(crate_path, dest, limits).map(|_| ())
 }

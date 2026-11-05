@@ -31,16 +31,16 @@ impl Change {
     /// Resumo de uma linha, legível, para o terminal.
     pub fn summary(&self) -> String {
         match self {
-            Change::CreateFile { path, .. } => format!("criar  {path}"),
+            Change::CreateFile { path, .. } => format!("create  {path}"),
             Change::AddDependency { manifest, spec } => format!(
-                "add    {} = {} [{}] em {manifest}:{}",
+                "add     {} = {} [{}] in {manifest}:{}",
                 spec.table_entry_key(),
                 spec.version_req.as_deref().unwrap_or("*"),
                 spec.source,
                 spec.kind.table_key(),
             ),
             Change::UpdateDependency { manifest, from, to } => format!(
-                "update {} : {} -> {} em {manifest}",
+                "update  {} : {} -> {} in {manifest}",
                 to.table_entry_key(),
                 from.source,
                 to.source,
@@ -49,7 +49,7 @@ impl Change {
                 manifest,
                 key,
                 table,
-            } => format!("remove {key} de {manifest}:{table}"),
+            } => format!("remove  {key} from {manifest}:{table}"),
         }
     }
 }
@@ -86,7 +86,7 @@ impl Plan {
 impl fmt::Display for Plan {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.is_noop() {
-            return write!(f, "(sem alterações — já convergido)");
+            return write!(f, "(no changes — already converged)");
         }
         for (i, c) in self.changes.iter().enumerate() {
             if i > 0 {

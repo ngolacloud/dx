@@ -40,7 +40,7 @@ pub struct Provenance {
 pub enum ReleaseError {
     #[error("I/O: {0}")]
     Io(#[from] std::io::Error),
-    #[error("serialização: {0}")]
+    #[error("serialization: {0}")]
     Json(#[from] serde_json::Error),
 }
 

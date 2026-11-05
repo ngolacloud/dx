@@ -10,15 +10,15 @@ use std::process::Command;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PgoError {
-    #[error("llvm-profdata não encontrado (instalar `rustup component add llvm-tools-preview` ou ter /usr/bin/llvm-profdata)")]
+    #[error("llvm-profdata not found (install `rustup component add llvm-tools-preview` or have /usr/bin/llvm-profdata)")]
     NoProfdata,
     #[error(
-        "nenhum ficheiro .profraw em {0} — o workload correu e exercitou o binário instrumentado?"
+        "no .profraw file in {0} — did the workload run and exercise the instrumented binary?"
     )]
     NoProfraw(String),
-    #[error("llvm-profdata merge falhou (perfil incompatível com a toolchain?): {0}")]
+    #[error("llvm-profdata merge failed (profile incompatible with the toolchain?): {0}")]
     MergeFailed(String),
-    #[error("erro de I/O: {0}")]
+    #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 }
 

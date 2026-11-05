@@ -37,23 +37,23 @@ impl Default for Limits {
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum ExtractError {
-    #[error("entrada com caminho absoluto rejeitada: {0}")]
+    #[error("entry with absolute path rejected: {0}")]
     AbsolutePath(String),
-    #[error("entrada com `..` (path traversal) rejeitada: {0}")]
+    #[error("entry with `..` (path traversal) rejected: {0}")]
     PathTraversal(String),
-    #[error("symlink rejeitado (extracção conservadora): {0}")]
+    #[error("symlink rejected (conservative extraction): {0}")]
     SymlinkRejected(String),
-    #[error("hardlink rejeitado (extracção conservadora): {0}")]
+    #[error("hardlink rejected (conservative extraction): {0}")]
     HardlinkRejected(String),
-    #[error("tipo de entrada não suportado rejeitado: {0}")]
+    #[error("unsupported entry type rejected: {0}")]
     UnsupportedEntry(String),
-    #[error("demasiadas entradas (> {0})")]
+    #[error("too many entries (> {0})")]
     TooManyEntries(usize),
-    #[error("tamanho total excede o limite (> {0} bytes)")]
+    #[error("total size exceeds limit (> {0} bytes)")]
     TotalSizeExceeded(u64),
-    #[error("ficheiro excede o limite por-ficheiro (> {0} bytes): {1}")]
+    #[error("file exceeds per-file limit (> {0} bytes): {1}")]
     FileSizeExceeded(u64, String),
-    #[error("erro de I/O/arquivo: {0}")]
+    #[error("I/O/archive error: {0}")]
     Io(String),
 }
 
@@ -80,7 +80,7 @@ fn safe_relative(path: &Path) -> Result<Utf8PathBuf, ExtractError> {
             Component::Normal(p) => {
                 let s = p
                     .to_str()
-                    .ok_or_else(|| ExtractError::Io("nome não-UTF8".into()))?;
+                    .ok_or_else(|| ExtractError::Io("non-UTF8 name".into()))?;
                 rel.push(s);
             }
             Component::CurDir => {}
