@@ -1,0 +1,12 @@
+[package]
+name = "dx-seiva"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "DX — adaptador Seiva: protocolo declarativo de integração (âncoras) para extensões como seiva-console-admin. Nunca corre hooks do crate."
+
+[dependencies]
+serde.workspace = true

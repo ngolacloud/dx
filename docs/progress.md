@@ -40,6 +40,16 @@
 | Caminho de dependências legível (`cargo tree -i`) | Implementado | demo (smallvec → vuln-demo) |
 | `dx audit` / `dx doctor` com códigos de saída coerentes (0/4/5) | Implementado | demo ao vivo |
 
+### Adaptador Seiva (ADR-0013, crate `dx-seiva`) — inc.5
+
+| Item | Estado | Evidência |
+|------|--------|-----------|
+| Protocolo declarativo versionado, registo confiável (seiva-console-admin); NUNCA corre hooks do crate | Implementado+testado | `dx-seiva` (4 testes) |
+| Integração por âncoras idempotente (1 ocorrência) + reversível; preserva indentação | Implementado+testado | demo (recompila, "[console-admin] registado") |
+| `dx new --template seiva` (composição gerida + metadata) | Implementado | demo |
+| `dx add <ext>` liga após o gate; composição não gerida → ESTADO PARCIAL (exit 6, sem fingir) | Implementado | demo (não-gerida → parcial, dep à mesma adicionada) |
+| Sem permissões admin, sem passwords; recompilar para ligar | Implementado | mensagem + desenho |
+
 ### Relatórios + suites configuráveis (ADR-0012, crate `dx-report`) — inc.3
 
 | Item | Estado | Evidência |

@@ -1,15 +1,18 @@
-//! `dx` — CLI fina sobre bibliotecas testáveis (dx-core, dx-manifest).
+//! `dx` — CLI fina sobre bibliotecas testáveis (dx-core, dx-manifest,
+//! dx-security, dx-integrity, dx-sandbox, dx-build, dx-release, dx-report,
+//! dx-seiva).
 //!
-//! Incremento 1: contrato Cargo e mutações idempotentes (`new`/`init`/`add`/
-//! `remove`), com `--dry-run`, plano antes de alterar, journal e lock. Os
-//! comandos de compilação/teste delegam no Cargo com argv estruturado (sem
-//! shell). O gate de segurança, `update`/`fetch`, `audit`, `doctor` e
-//! `release` chegam em incrementos seguintes e estão marcados como tal.
+//! Comandos implementados: `new`/`init` (inc. `--template seiva`), `add`
+//! (idempotente + gate de segurança + adaptador Seiva), `remove`, `build`
+//! (`--profile`/`--isolated`/`--measure`), `bench-build`, `pgo`, `test`
+//! (suites configuráveis + relatórios), `audit`, `doctor`, `fetch`,
+//! `release prepare`. `update` fica como stub honesto (exit 3).
 
 mod buildcmd;
 mod releasecmd;
 mod scaffold;
 mod security;
+mod seivacmd;
 mod stage;
 mod suspect;
 mod testcmd;
@@ -36,13 +39,16 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Criar um projecto novo (`--lib` ou `--bin`).
+    /// Criar um projecto novo (`--lib`, `--bin` ou `--template seiva`).
     New {
         name: String,
         #[arg(long)]
         lib: bool,
         #[arg(long)]
         bin: bool,
+        /// Template: seiva (plataforma com composição gerida).
+        #[arg(long)]
+        template: Option<String>,
         #[command(flatten)]
         dry: DryRun,
     },
@@ -52,6 +58,8 @@ enum Commands {
         lib: bool,
         #[arg(long)]
         bin: bool,
+        #[arg(long)]
+        template: Option<String>,
         #[command(flatten)]
         dry: DryRun,
     },
@@ -214,9 +222,15 @@ fn run(cmd: Commands) -> Result<ExitCode> {
             name,
             lib,
             bin,
+            template,
             dry,
-        } => cmd_new(&name, lib, bin, dry.dry_run),
-        Commands::Init { lib, bin, dry } => cmd_init(lib, bin, dry.dry_run),
+        } => cmd_new(&name, lib, bin, template.as_deref(), dry.dry_run),
+        Commands::Init {
+            lib,
+            bin,
+            template,
+            dry,
+        } => cmd_init(lib, bin, template.as_deref(), dry.dry_run),
         Commands::Add {
             spec,
             features,
@@ -344,11 +358,29 @@ fn not_yet(name: &str, increment: u8, what: &str) -> Result<ExitCode> {
 // new / init
 // ---------------------------------------------------------------------------
 
-fn cmd_new(name: &str, lib: bool, bin: bool, dry_run: bool) -> Result<ExitCode> {
+fn resolve_template(lib: bool, bin: bool, template: Option<&str>) -> Result<scaffold::Template> {
     if bin && lib {
         bail!("escolhe `--lib` OU `--bin`, não ambos");
     }
-    let is_lib = lib && !bin;
+    match template {
+        Some("seiva") => Ok(scaffold::Template::Seiva),
+        Some(other) => bail!("template desconhecido `{other}` (disponível: seiva)"),
+        None => Ok(if bin {
+            scaffold::Template::Bin
+        } else {
+            scaffold::Template::Lib
+        }),
+    }
+}
+
+fn cmd_new(
+    name: &str,
+    lib: bool,
+    bin: bool,
+    template: Option<&str>,
+    dry_run: bool,
+) -> Result<ExitCode> {
+    let tpl = resolve_template(lib, bin, template)?;
     let dir = Utf8PathBuf::from(name);
     if dir.exists()
         && std::fs::read_dir(&dir)
@@ -357,15 +389,12 @@ fn cmd_new(name: &str, lib: bool, bin: bool, dry_run: bool) -> Result<ExitCode> 
     {
         bail!("`{name}` já existe e não está vazio — não sobrescrevo trabalho existente");
     }
-    let plan = scaffold::plan_scaffold(&dir, scaffold::crate_base_name(name), is_lib);
+    let plan = scaffold::plan_scaffold_template(&dir, scaffold::crate_base_name(name), tpl);
     apply_scaffold(&dir, plan, dry_run)
 }
 
-fn cmd_init(lib: bool, bin: bool, dry_run: bool) -> Result<ExitCode> {
-    if bin && lib {
-        bail!("escolhe `--lib` OU `--bin`, não ambos");
-    }
-    let is_lib = lib && !bin;
+fn cmd_init(lib: bool, bin: bool, template: Option<&str>, dry_run: bool) -> Result<ExitCode> {
+    let tpl = resolve_template(lib, bin, template)?;
     let dir = Utf8PathBuf::from(".");
     if dir.join("Cargo.toml").exists() {
         bail!("já existe um Cargo.toml aqui — `init` não sobrescreve");
@@ -374,7 +403,7 @@ fn cmd_init(lib: bool, bin: bool, dry_run: bool) -> Result<ExitCode> {
         .ok()
         .and_then(|p| p.file_name().map(|s| s.to_string_lossy().into_owned()))
         .unwrap_or_else(|| "projecto".into());
-    let plan = scaffold::plan_scaffold(&dir, scaffold::crate_base_name(&name), is_lib);
+    let plan = scaffold::plan_scaffold_template(&dir, scaffold::crate_base_name(&name), tpl);
     apply_scaffold(&dir, plan, dry_run)
 }
 
@@ -534,6 +563,9 @@ fn cmd_add(a: AddArgs) -> Result<ExitCode> {
             match outcome.verdict.decision {
                 Decision::Approved => {
                     commit(&manifest)?;
+                    if let Some(spec) = dx_seiva::known(&name) {
+                        return seivacmd::integrate(&root, &manifest_path, &spec, true);
+                    }
                     Ok(ExitCode::SUCCESS)
                 }
                 Decision::Blocked => {
@@ -557,6 +589,9 @@ fn cmd_add(a: AddArgs) -> Result<ExitCode> {
             eprintln!(
                 "⚠ gate pré-aterragem NÃO aplicado ({reason}). A dependência foi escrita, mas o grafo não foi avaliado em staging. Corre `dx audit` antes de compilar."
             );
+            if let Some(spec) = dx_seiva::known(&name) {
+                return seivacmd::integrate(&root, &manifest_path, &spec, false);
+            }
             Ok(ExitCode::from(6))
         }
         stage::Staging::ResolveFailed { reason } => {

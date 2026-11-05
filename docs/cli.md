@@ -91,7 +91,18 @@ cargo-semver-checks se presente) e produz artefactos para revisão em
 publicação e binários+checksums. **Prepara ≠ publica**: não cria tags, não muda
 versões, não publica; é idempotente. Base expirada ⇒ NÃO PRONTO (§5).
 
+### `dx new <nome> --template seiva`
+Scaffola uma plataforma Seiva com composição gerida pelo DX (`src/composition.rs`
+com âncoras `// dx:seiva:*` + `[package.metadata.dx.seiva].composition`).
+
+### `dx add seiva-console-admin`
+Adiciona a dependência (via gate) e, se a composição for gerida, integra a
+extensão por âncoras (idempotente, reversível) — nunca correndo hooks do crate.
+Composição não gerida → dependência adicionada + **patch pendente** (estado
+parcial, exit 6), sem alegar integração. Sem permissões admin; recompila com
+`dx build`. (A extensão de registry exige versão; fictícia demonstrada via
+`--path`.)
+
 ## Planeado
 
-`dx update` · `dx new <plat> --template seiva` e `dx add seiva-console-admin`
-(inc.5). Hoje devolvem exit 3 com mensagem a dizer em que incremento chegam.
+`dx update`. Hoje devolve exit 3 com mensagem a dizer em que incremento chega.

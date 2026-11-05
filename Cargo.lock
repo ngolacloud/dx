@@ -251,10 +251,12 @@ dependencies = [
  "dx-report",
  "dx-sandbox",
  "dx-security",
+ "dx-seiva",
  "predicates",
  "serde_json",
  "sha2",
  "tempfile",
+ "toml",
 ]
 
 [[package]]
@@ -337,6 +339,13 @@ dependencies = [
  "sha2",
  "tempfile",
  "thiserror",
+]
+
+[[package]]
+name = "dx-seiva"
+version = "0.0.1"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
