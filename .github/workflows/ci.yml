@@ -43,6 +43,6 @@ jobs:
       - name: Refresh advisory database
         run: cargo audit fetch || true
       - name: Build dx
-        run: cargo build -p dx-cli
+        run: cargo build -p ngoladx-cli
       - name: dx audit
         run: ./target/debug/dx audit

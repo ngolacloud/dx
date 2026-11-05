@@ -60,7 +60,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y musl-tools
 
       - name: Build dx (release, static where possible)
-        run: cargo build -p dx-cli --release --locked --target ${{ matrix.target }}
+        run: cargo build -p ngoladx-cli --release --locked --target ${{ matrix.target }}
 
       - name: Package binary + sha256
         shell: bash
