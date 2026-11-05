@@ -24,8 +24,19 @@ Adiciona/actualiza uma dependência de forma idempotente.
 
 Regras: features normalizadas (ordem/dups irrelevantes); repetir é no-op;
 mudar de origem é erro (remover primeiro); registry **sem** versão é recusado
-(usar `nome@<req>`; "latest" automático chega no inc.2 atrás do gate); nome
-suspeito (typosquat) é recusado com sugestão.
+(usar `nome@<req>`); nome suspeito (typosquat) é recusado com sugestão.
+
+**Gate de segurança no `add`** (ADR-0006): antes de aterrar, o DX resolve o
+grafo candidato num staging isolado (`cargo generate-lockfile`, **sem** correr
+`build.rs`) e corre o gate. Só aterra se **Approved**; **Blocked** (exit 4) e
+**Pending**/base expirada (exit 5) não aterram. Projectos workspace/path →
+**NotApplicable**: aterra mas marca não-verificado (exit 6, correr `dx audit`).
+`--offline` resolve só do cache; validade da base por `DX_MAX_DB_AGE_SECS`.
+
+### `dx audit` / `dx doctor`
+`dx audit` corre o gate sobre o `Cargo.lock` do projecto e reporta achados por
+categoria, estado da base e decisão (exit 0/4/5). `dx doctor` diagnostica
+toolchain, `cargo-audit`, frescura da advisory-db e política.
 
 ### `dx remove <nome> [--dev|--build] [--manifest-path] [--dry-run]`
 Remove uma dependência; idempotente (remover o que não existe é no-op).
@@ -38,7 +49,6 @@ saída. **Ainda não aplicam o gate de segurança** (inc.2 liga-o antes do build
 
 ## Planeado
 
-`dx audit` (inc.2) · `dx fetch --locked` (inc.2) · `dx update` (inc.2) ·
-`dx doctor` (inc.2) · `dx release prepare` (inc.4) ·
+`dx fetch --locked` · `dx update` · `dx release prepare` (inc.4) ·
 `dx new <plat> --template seiva` e `dx add seiva-console-admin` (inc.5).
 Hoje devolvem exit 3 com mensagem a dizer em que incremento chegam.

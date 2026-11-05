@@ -40,6 +40,16 @@
 | Caminho de dependências legível (`cargo tree -i`) | Implementado | demo (smallvec → vuln-demo) |
 | `dx audit` / `dx doctor` com códigos de saída coerentes (0/4/5) | Implementado | demo ao vivo |
 
+### Gate ligado ao `dx add` (ADR-0006)
+
+| Item | Estado | Evidência |
+|------|--------|-----------|
+| Staging isolado: resolve grafo candidato via `cargo generate-lockfile` SEM compilar/executar build.rs | Implementado+testado | `dx-cli::stage` (4 testes); demo ao vivo |
+| `add` só aterra se **Approved**; Blocked (4)/Pending (5) não aterram; manifesto intacto | Implementado+testado | `gate_*` (DX_GATE_TESTS); demo (serde pending→não aterra, approved→aterra) |
+| Formas fora de âmbito (workspace/herança/path) → NotApplicable, aterra mas marca **não-verificado** (exit 6) | Implementado+testado | `not_applicable_lands_but_reports_unverified` |
+| Validade configurável `DX_MAX_DB_AGE_SECS` | Implementado+testado | `gate_approved_when_db_fresh_lands` |
+| `--offline` no `add` (resolve só do cache) | Implementado | demo offline |
+
 ### Cenários de aceitação exercitados ao vivo
 
 - **Advisory numa dependência → bloqueio antes de build + caminho legível**:

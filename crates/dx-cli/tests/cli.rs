@@ -1,6 +1,17 @@
-//! Testes de integração da CLI `dx` — cobrem os cenários de aceitação do
-//! incremento 1 (contrato §9, linhas aplicáveis): idempotência, dry-run,
-//! conflito de origem, typosquatting, scaffolding e recuperação de journal.
+//! Testes de integração da CLI `dx`.
+//!
+//! Desde que o gate de segurança passou a correr em `dx add` (resolver grafo
+//! candidato em staging → auditar → só então aterrar), a aterragem de uma
+//! dependência de registry depende da rede/base. Para manter estes testes
+//! deterministas:
+//!
+//! - A mecânica de manifesto (idempotência, git/rev, recuperação) usa a forma
+//!   **NotApplicable** do staging (manifesto com dependência `path`), que NÃO
+//!   toca na rede e aterra com código 6 (não-verificado).
+//! - O comportamento do gate em si (pending/approved) está atrás de
+//!   `DX_GATE_TESTS=1` porque precisa do cache do Cargo (serde) — corrido com
+//!   evidência à parte. A lógica pura do veredicto está coberta por testes de
+//!   unidade em `dx-security`.
 
 use assert_cmd::Command;
 use predicates::prelude::*;
@@ -11,7 +22,18 @@ fn dx() -> Command {
     Command::cargo_bin("dx").unwrap()
 }
 
-fn seed_project(dir: &Path) {
+/// Projecto cujo manifesto tem uma dependência `path` — torna o staging
+/// `NotApplicable`, pelo que `dx add` não toca na rede e aterra (código 6).
+fn seed_notapplicable(dir: &Path) {
+    fs::write(
+        dir.join("Cargo.toml"),
+        "[package]\nname = \"demo\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\nlocaldep = { path = \"./local\" }\n",
+    )
+    .unwrap();
+}
+
+/// Projecto auto-contido (dispara o gate real — usar só com `--offline` + env).
+fn seed_plain(dir: &Path) {
     fs::write(
         dir.join("Cargo.toml"),
         "[package]\nname = \"demo\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\n",
@@ -30,7 +52,6 @@ fn new_lib_scaffolds_files() {
     assert!(root.join("Cargo.toml").exists());
     assert!(root.join("src/lib.rs").exists());
     assert!(root.join(".gitignore").exists());
-    // Sem journal pendente após sucesso.
     assert!(!root.join(".dx/journal.json").exists());
 }
 
@@ -50,17 +71,19 @@ fn new_refuses_nonempty_dir() {
 #[test]
 fn add_is_idempotent_byte_for_byte() {
     let tmp = tempfile::tempdir().unwrap();
-    seed_project(tmp.path());
+    seed_notapplicable(tmp.path());
 
+    // 1ª vez: staging NotApplicable → aterra sem rede (código 6 = não-verificado).
     dx().current_dir(tmp.path())
         .args(["add", "serde@1", "--features", "derive"])
         .assert()
-        .success();
+        .code(6)
+        .stderr(predicate::str::contains("gate pré-aterragem NÃO aplicado"));
     let after_first = fs::read_to_string(tmp.path().join("Cargo.toml")).unwrap();
     assert!(after_first.contains("serde"));
     assert!(after_first.contains("derive"));
 
-    // Repetir com a mesma intenção → no-op, byte-a-byte igual.
+    // 2ª vez: no-op (retorna antes do gate), byte-a-byte igual.
     dx().current_dir(tmp.path())
         .args(["add", "serde@1", "--features", "derive"])
         .assert()
@@ -69,10 +92,10 @@ fn add_is_idempotent_byte_for_byte() {
     let after_second = fs::read_to_string(tmp.path().join("Cargo.toml")).unwrap();
     assert_eq!(
         after_first, after_second,
-        "add repetido não pode alterar o manifesto"
+        "add repetido não altera o manifesto"
     );
 
-    // Ordem de features não altera o estado.
+    // Ordem de features irrelevante → continua no-op.
     dx().current_dir(tmp.path())
         .args(["add", "serde@1", "--features", "derive,derive"])
         .assert()
@@ -85,8 +108,9 @@ fn add_is_idempotent_byte_for_byte() {
 #[test]
 fn dry_run_writes_nothing() {
     let tmp = tempfile::tempdir().unwrap();
-    seed_project(tmp.path());
+    seed_plain(tmp.path());
     let before = fs::read_to_string(tmp.path().join("Cargo.toml")).unwrap();
+    // --dry-run retorna antes do gate; não toca na rede nem escreve.
     dx().current_dir(tmp.path())
         .args(["add", "anyhow@1", "--dry-run"])
         .assert()
@@ -121,13 +145,12 @@ fn source_conflict_refuses() {
 #[test]
 fn typosquat_is_refused_with_suggestion() {
     let tmp = tempfile::tempdir().unwrap();
-    seed_project(tmp.path());
+    seed_plain(tmp.path());
     dx().current_dir(tmp.path())
         .args(["add", "seiva-conosle-admin"])
         .assert()
         .failure()
         .stderr(predicate::str::contains("seiva-console-admin"));
-    // E não escreveu nada.
     let body = fs::read_to_string(tmp.path().join("Cargo.toml")).unwrap();
     assert!(!body.contains("conosle"));
 }
@@ -135,7 +158,7 @@ fn typosquat_is_refused_with_suggestion() {
 #[test]
 fn registry_without_version_is_rejected_with_guidance() {
     let tmp = tempfile::tempdir().unwrap();
-    seed_project(tmp.path());
+    seed_plain(tmp.path());
     dx().current_dir(tmp.path())
         .args(["add", "anyhow"])
         .assert()
@@ -157,7 +180,6 @@ fn remove_is_idempotent() {
         .success();
     let body = fs::read_to_string(tmp.path().join("Cargo.toml")).unwrap();
     assert!(!body.contains("serde"));
-    // Remover de novo → no-op.
     dx().current_dir(tmp.path())
         .args(["remove", "serde"])
         .assert()
@@ -167,8 +189,9 @@ fn remove_is_idempotent() {
 
 #[test]
 fn git_dep_with_rev_lands_in_manifest() {
+    // NotApplicable (já há dep path) → não resolve git na rede; aterra o git dep.
     let tmp = tempfile::tempdir().unwrap();
-    seed_project(tmp.path());
+    seed_notapplicable(tmp.path());
     dx().current_dir(tmp.path())
         .args([
             "add",
@@ -179,24 +202,33 @@ fn git_dep_with_rev_lands_in_manifest() {
             "abc123",
         ])
         .assert()
-        .success();
+        .code(6);
     let body = fs::read_to_string(tmp.path().join("Cargo.toml")).unwrap();
     assert!(body.contains("git = \"https://github.com/org/minha-lib\""));
     assert!(body.contains("rev = \"abc123\""));
 }
 
-/// Simula um crash: deixa um journal pendente e confirma que a operação
-/// seguinte o recupera (completa a escrita) sem perder dados.
+#[test]
+fn not_applicable_lands_but_reports_unverified() {
+    let tmp = tempfile::tempdir().unwrap();
+    seed_notapplicable(tmp.path());
+    dx().current_dir(tmp.path())
+        .args(["add", "serde@1"])
+        .assert()
+        .code(6)
+        .stderr(predicate::str::contains("Corre `dx audit`"));
+}
+
+/// Journal pendente é recuperado antes da operação seguinte, sem perda.
 #[test]
 fn pending_journal_is_recovered_on_next_op() {
     let tmp = tempfile::tempdir().unwrap();
-    seed_project(tmp.path());
-    // Forjar um journal pendente que escreve um Cargo.toml com `recovered = "1"`.
+    seed_notapplicable(tmp.path());
     let dxdir = tmp.path().join(".dx");
     fs::create_dir_all(&dxdir).unwrap();
     let target = tmp.path().join("Cargo.toml");
-    let new_body =
-        "[package]\nname=\"demo\"\nversion=\"0.1.0\"\n[dependencies]\nrecovered = \"1\"\n";
+    // Corpo recuperado mantém a dep path (continua NotApplicable → offline).
+    let new_body = "[package]\nname=\"demo\"\nversion=\"0.1.0\"\n[dependencies]\nlocaldep = { path = \"./local\" }\nrecovered = \"1\"\n";
     let sha = sha256_hex(new_body);
     let journal = format!(
         "{{\"version\":1,\"writes\":[{{\"path\":{:?},\"new_sha256\":{:?},\"new_contents\":{:?}}}]}}",
@@ -206,24 +238,65 @@ fn pending_journal_is_recovered_on_next_op() {
     );
     fs::write(dxdir.join("journal.json"), journal).unwrap();
 
-    // Uma operação idempotente qualquer dispara o recover primeiro.
     dx().current_dir(tmp.path())
         .args(["add", "serde@1"])
         .assert()
-        .success();
+        .code(6);
 
     let body = fs::read_to_string(&target).unwrap();
     assert!(
         body.contains("recovered = \"1\""),
-        "journal devia ter sido aplicado: {body}"
+        "journal aplicado: {body}"
     );
-    // serde também entrou (a operação prosseguiu após o recover).
-    assert!(body.contains("serde"));
-    // Journal consumido.
-    assert!(!dxdir.join("journal.json").exists());
+    assert!(body.contains("serde"), "add prosseguiu após recover");
+    assert!(!dxdir.join("journal.json").exists(), "journal consumido");
 }
 
-// sha256 em hex — espelho mínimo do helper interno do dx-manifest para o teste.
+// --- Testes do gate real (precisam do cache do Cargo p/ serde) -------------
+// Activar com DX_GATE_TESTS=1. Correm offline (serde em cache) + --offline.
+
+fn gate_tests_enabled() -> bool {
+    std::env::var("DX_GATE_TESTS")
+        .map(|v| v == "1")
+        .unwrap_or(false)
+}
+
+#[test]
+fn gate_pending_when_db_expired_blocks_landing() {
+    if !gate_tests_enabled() {
+        return;
+    }
+    let tmp = tempfile::tempdir().unwrap();
+    seed_plain(tmp.path());
+    // DX_MAX_DB_AGE_SECS=0 ⇒ qualquer base é "expirada" ⇒ PENDENTE (exit 5).
+    dx().current_dir(tmp.path())
+        .env("DX_MAX_DB_AGE_SECS", "0")
+        .args(["add", "serde@1", "--offline"])
+        .assert()
+        .code(5)
+        .stderr(predicate::str::contains("NÃO aterrou"));
+    let body = fs::read_to_string(tmp.path().join("Cargo.toml")).unwrap();
+    assert!(!body.contains("serde"), "pending não pode aterrar");
+}
+
+#[test]
+fn gate_approved_when_db_fresh_lands() {
+    if !gate_tests_enabled() {
+        return;
+    }
+    let tmp = tempfile::tempdir().unwrap();
+    seed_plain(tmp.path());
+    // Janela enorme ⇒ base "válida" ⇒ serde (limpo) ⇒ APROVADO (exit 0).
+    dx().current_dir(tmp.path())
+        .env("DX_MAX_DB_AGE_SECS", "99999999999")
+        .args(["add", "serde@1", "--offline"])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("APROVADO"));
+    let body = fs::read_to_string(tmp.path().join("Cargo.toml")).unwrap();
+    assert!(body.contains("serde"));
+}
+
 fn sha256_hex(s: &str) -> String {
     use sha2::{Digest, Sha256};
     let mut h = Sha256::new();

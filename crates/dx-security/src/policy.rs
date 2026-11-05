@@ -91,6 +91,19 @@ impl Default for Policy {
 }
 
 impl Policy {
+    /// Política de desenvolvimento, com a validade da base sobreponível por
+    /// `DX_MAX_DB_AGE_SECS` (o contrato pede validade máxima configurável).
+    /// `0` torna qualquer base "expirada"; um valor alto alarga a janela.
+    pub fn from_env() -> Self {
+        let mut p = Policy::default();
+        if let Ok(v) = std::env::var("DX_MAX_DB_AGE_SECS") {
+            if let Ok(secs) = v.trim().parse::<u64>() {
+                p.max_db_age_secs = secs;
+            }
+        }
+        p
+    }
+
     pub fn action_for(&self, cat: Category) -> Action {
         // Bloqueios duros nunca descem abaixo de Block, mesmo que a config
         // tente enfraquecê-los.

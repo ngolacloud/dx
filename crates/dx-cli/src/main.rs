@@ -8,6 +8,7 @@
 
 mod scaffold;
 mod security;
+mod stage;
 mod suspect;
 
 use std::process::{Command, ExitCode};
@@ -17,6 +18,7 @@ use camino::{Utf8Path, Utf8PathBuf};
 use clap::{Args, Parser, Subcommand};
 use dx_core::{Change, DepKind, DepSpec, Plan, Source};
 use dx_manifest::{apply_transaction, commit_manifest, recover, FileWrite, Manifest};
+use dx_security::{run_gate, Decision, Policy};
 
 #[derive(Parser)]
 #[command(
@@ -78,6 +80,9 @@ enum Commands {
         registry: Option<String>,
         #[arg(long)]
         manifest_path: Option<Utf8PathBuf>,
+        /// Resolver o grafo candidato sem rede (usa só o cache do Cargo).
+        #[arg(long)]
+        offline: bool,
         #[command(flatten)]
         dry: DryRun,
     },
@@ -181,6 +186,7 @@ fn run(cmd: Commands) -> Result<ExitCode> {
             path,
             registry,
             manifest_path,
+            offline,
             dry,
         } => cmd_add(AddArgs {
             spec,
@@ -196,6 +202,7 @@ fn run(cmd: Commands) -> Result<ExitCode> {
             path,
             registry,
             manifest_path,
+            offline,
             dry_run: dry.dry_run,
         }),
         Commands::Remove {
@@ -364,6 +371,7 @@ struct AddArgs {
     path: Option<String>,
     registry: Option<String>,
     manifest_path: Option<Utf8PathBuf>,
+    offline: bool,
     dry_run: bool,
 }
 
@@ -442,13 +450,63 @@ fn cmd_add(a: AddArgs) -> Result<ExitCode> {
     if plan.is_noop() {
         return Ok(ExitCode::SUCCESS); // idempotente: nenhuma escrita
     }
+
+    // Mutar em memória (ainda NÃO escrito em disco) e resolver o grafo
+    // candidato num staging isolado, SEM compilar nem correr build.rs.
     manifest.upsert(&spec);
-    commit_manifest(&root, &manifest).context("escrever Cargo.toml")?;
-    eprintln!(
-        "✓ `{}` configurado em {manifest_path}",
-        spec.table_entry_key()
-    );
-    Ok(ExitCode::SUCCESS)
+    let mutated = manifest.to_toml_string();
+
+    let commit = |m: &Manifest| -> Result<()> {
+        commit_manifest(&root, m).context("escrever Cargo.toml")?;
+        eprintln!(
+            "✓ `{}` configurado em {manifest_path}",
+            spec.table_entry_key()
+        );
+        Ok(())
+    };
+
+    match stage::resolve_candidate(&root, &mutated, a.offline) {
+        stage::Staging::Resolved { root: staging, .. } => {
+            let policy = Policy::from_env();
+            // Cache sob o projecto real; auditoria sobre o lockfile do staging.
+            let outcome = run_gate(&root, &staging, &policy, security::now_unix())
+                .context("correr o gate de segurança (cargo-audit instalado?)")?;
+            security::report_verdict(&outcome.verdict, &staging, outcome.from_cache);
+            match outcome.verdict.decision {
+                Decision::Approved => {
+                    commit(&manifest)?;
+                    Ok(ExitCode::SUCCESS)
+                }
+                Decision::Blocked => {
+                    eprintln!(
+                        "✗ `{name}` NÃO aterrou: grafo candidato bloqueado. Manifesto inalterado."
+                    );
+                    Ok(ExitCode::from(outcome.verdict.decision.exit_code()))
+                }
+                Decision::Pending => {
+                    eprintln!(
+                        "⏸ `{name}` NÃO aterrou: base de advisories inválida/expirada. Renova a base (`dx doctor`) e repete; o download pode ter ocorrido, o USO não está autorizado."
+                    );
+                    Ok(ExitCode::from(outcome.verdict.decision.exit_code()))
+                }
+            }
+        }
+        stage::Staging::NotApplicable { reason } => {
+            // Honesto: não finjo gate. A edição de texto aterra (não compila
+            // nada), mas o estado é NÃO-VERIFICADO e é preciso `dx audit`.
+            commit(&manifest)?;
+            eprintln!(
+                "⚠ gate pré-aterragem NÃO aplicado ({reason}). A dependência foi escrita, mas o grafo não foi avaliado em staging. Corre `dx audit` antes de compilar."
+            );
+            Ok(ExitCode::from(6))
+        }
+        stage::Staging::ResolveFailed { reason } => {
+            eprintln!(
+                "erro: não consegui resolver o grafo candidato; manifesto inalterado.\n  {reason}"
+            );
+            Ok(ExitCode::FAILURE)
+        }
+    }
 }
 
 fn cmd_remove(

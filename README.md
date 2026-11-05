@@ -19,7 +19,9 @@ um gate de segurança da cadeia de dependências, relatórios e perfis de build.
 | `--dry-run`, plano, journal, lock, recuperação de crash | **Implementado + testado** |
 | Detecção de typosquatting (sinal) | **Implementado + testado** |
 | Passthrough estruturado p/ Cargo (`build`/`check`/`run`/`test`/`fmt`/`lint`) | **Implementado** |
-| Gate de segurança (`audit`/`fetch`/`update`) | **Planeado (inc.2)** — stub honesto (exit 3) |
+| Gate de segurança (`dx audit`/`dx doctor`, cargo-audit, validade da base, veredicto, cache) | **Implementado + testado** |
+| Gate ligado ao `dx add` (staging isolado sem build.rs; só aterra se aprovado) | **Implementado + testado** |
+| `fetch`/`update`/`release prepare` | **Planeado** — stub honesto (exit 3) |
 | Perfis LLVM / PGO / `release prepare` | **Planeado (inc.4)** |
 | Adaptador Seiva / `seiva-console-admin` | **Planeado (inc.5)** |
 

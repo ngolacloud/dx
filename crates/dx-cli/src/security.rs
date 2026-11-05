@@ -9,9 +9,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
 use camino::Utf8Path;
-use dx_security::{audit, db, inverse_dependency_path, run_gate, Decision, Finding, Policy};
+use dx_security::{
+    audit, db, inverse_dependency_path, run_gate, Decision, Finding, Policy, Verdict,
+};
 
-fn now_unix() -> u64 {
+pub fn now_unix() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs())
@@ -20,11 +22,17 @@ fn now_unix() -> u64 {
 
 /// `dx audit` — corre o gate e reporta.
 pub fn cmd_audit(root: &Utf8Path) -> Result<ExitCode> {
-    let policy = Policy::default();
+    let policy = Policy::from_env();
     let outcome = run_gate(root, root, &policy, now_unix())
         .context("correr o gate de segurança (cargo-audit instalado?)")?;
-    let v = &outcome.verdict;
+    report_verdict(&outcome.verdict, root, outcome.from_cache);
+    Ok(ExitCode::from(outcome.verdict.decision.exit_code()))
+}
 
+/// Imprime um veredicto de forma legível. `tree_dir` é onde correr
+/// `cargo tree -i` para o caminho de dependências (o directório que tem o
+/// Cargo.lock avaliado — projecto real ou staging).
+pub fn report_verdict(v: &Verdict, tree_dir: &Utf8Path, from_cache: bool) {
     eprintln!("== Gate de segurança DX ==");
     eprintln!(
         "Base de advisories: {} ({})",
@@ -35,7 +43,7 @@ pub fn cmd_audit(root: &Utf8Path) -> Result<ExitCode> {
         },
         v.db_status.detail
     );
-    if outcome.from_cache {
+    if from_cache {
         eprintln!("(veredicto reutilizado do cache — chave válida; nenhum redownload)");
     }
 
@@ -46,9 +54,8 @@ pub fn cmd_audit(root: &Utf8Path) -> Result<ExitCode> {
         for (i, f) in v.findings.iter().enumerate() {
             let blocks = v.blocking.contains(&i);
             print_finding(f, blocks);
-            // Caminho de dependências legível só para os que bloqueiam.
             if blocks {
-                if let Some(path) = inverse_dependency_path(root, &f.package, &f.version) {
+                if let Some(path) = inverse_dependency_path(tree_dir, &f.package, &f.version) {
                     eprintln!("      caminho:");
                     for line in path.lines() {
                         eprintln!("        {line}");
@@ -60,9 +67,11 @@ pub fn cmd_audit(root: &Utf8Path) -> Result<ExitCode> {
 
     eprintln!();
     match v.decision {
-        Decision::Approved => eprintln!("Decisão: APROVADO ✓ (grafo sem vulnerabilidades conhecidas e base válida)"),
+        Decision::Approved => {
+            eprintln!("Decisão: APROVADO ✓ (grafo sem vulnerabilidades conhecidas e base válida)")
+        }
         Decision::Blocked => eprintln!(
-            "Decisão: BLOQUEADO ✗ — {} achado(s) a bloquear. Manifesto não alterado; nada segue para build.",
+            "Decisão: BLOQUEADO ✗ — {} achado(s) a bloquear.",
             v.blocking.len()
         ),
         Decision::Pending => eprintln!(
@@ -72,8 +81,6 @@ pub fn cmd_audit(root: &Utf8Path) -> Result<ExitCode> {
     eprintln!(
         "Nota honesta: ausência de achado é apenas ausência de vulnerabilidade CONHECIDA nesta base/instante — não é prova de benignidade."
     );
-
-    Ok(ExitCode::from(v.decision.exit_code()))
 }
 
 fn print_finding(f: &Finding, blocks: bool) {
@@ -101,7 +108,7 @@ pub fn cmd_doctor() -> Result<ExitCode> {
     let scanner = audit::scanner_version();
     eprintln!("cargo-audit: {scanner}");
 
-    let policy = Policy::default();
+    let policy = Policy::from_env();
     let db_path = db::default_db_path();
     let status = db::evaluate(&db_path, now_unix(), policy.max_db_age_secs);
     eprintln!("advisory-db: {}", status.path);
