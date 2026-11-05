@@ -1,0 +1,38 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/dx-core",
+    "crates/dx-manifest",
+    "crates/dx-cli",
+]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2021"
+rust-version = "1.82"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ngolacloud/dx"
+authors = ["Walter Angolar <angolarti@gmail.com>"]
+
+# DX distingue o NOME PUBLICADO do NOME DO EXECUTÁVEL (ver docs/adr/0003).
+# O crate `dx` já existe (e está yanked) em crates.io; o binário chama-se `dx`
+# mas o package de publicação será `dx-cli` (ou outro nome a confirmar).
+
+[workspace.dependencies]
+dx-core = { path = "crates/dx-core", version = "0.0.1" }
+dx-manifest = { path = "crates/dx-manifest", version = "0.0.1" }
+
+anyhow = "1"
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml_edit = "0.22"
+camino = { version = "1", features = ["serde1"] }
+tempfile = "3"
+fs4 = "0.13"
+
+# Perfis: NUNCA impor lto=fat/codegen-units=1 como optimização universal (ADR-0007).
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 16

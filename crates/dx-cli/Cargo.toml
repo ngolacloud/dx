@@ -1,0 +1,28 @@
+[package]
+name = "dx-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "DX — experiência de ferramentas Rust inspirada no UV. Executável: `dx`."
+
+# NOME PUBLICADO vs EXECUTÁVEL (ADR-0003): o crate `dx` já existe em crates.io
+# (yanked). O package publica-se como `dx-cli`; o binário chama-se `dx`.
+[[bin]]
+name = "dx"
+path = "src/main.rs"
+
+[dependencies]
+dx-core.workspace = true
+dx-manifest.workspace = true
+anyhow.workspace = true
+camino.workspace = true
+clap = { version = "4", features = ["derive"] }
+
+[dev-dependencies]
+assert_cmd = "2"
+predicates = "3"
+tempfile.workspace = true
+sha2 = "0.10"
