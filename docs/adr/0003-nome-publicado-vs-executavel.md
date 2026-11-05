@@ -14,9 +14,24 @@
 ## Decisão
 
 - **Executável**: `dx` (marca mantida).
-- **Nome publicado (crate)**: **não** `dx` (ocupado). O package de publicação é
-  `dx-cli`, com `[[bin]] name = "dx"`. Nome de publicação alternativo
-  (ex.: `ngola-dx`) fica em aberto até o dono decidir publicar.
+- **Nome publicado (crate)**: **por decidir**. Internamente o package da CLI é
+  `dx-cli` com `[[bin]] name = "dx"`, mas para crates.io é preciso um prefixo
+  livre (ver "Actualização" abaixo).
+
+## Actualização (2026-11-05) — crates.io
+
+Verificação ao vivo: `dx`, **`dx-cli`** (v0.3.1, 2024) e **`dx-core`** (v0.3.0)
+estão **TODOS ocupados** por crates de terceiros. Logo, publicar o workspace
+como está é **impossível** — os 13 crates (`dx-core`…`dx-cli`) precisariam de um
+prefixo. Prefixos livres confirmados: `ngoladx-*` e `dxkit*`.
+
+Decisão de marca pendente do dono. Opções:
+- **A — prefixo** (ex.: `ngoladx-core`…`ngoladx-cli`, binário continua `dx`):
+  publica no crates.io, reclama ~13 nomes.
+- **B — só GitHub**: distribuir via `cargo install --git https://github.com/ngolacloud/dx`
+  (funciona hoje, sem reclamar nomes). Recomendado até haver tracção.
+
+GitHub já é público: <https://github.com/ngolacloud/dx>.
 
 Não substituímos silenciosamente nenhuma ferramenta existente no PATH; se um
 `dx` de terceiros for detectado na instalação, o instalador (futuro) avisa em

@@ -36,12 +36,27 @@ Artifacts in `target/dx-release/`:
 `.github/workflows/ci.yml`: fmt + clippy(-D) + test + release build on every
 push/PR; an optional `security` job runs `dx audit` after refreshing the base.
 
-## When publishing is authorized (NOT done here)
+## GitHub (done)
 
-1. Decide/confirm the published name (`dx-cli` or another; `dx` is taken).
-2. `dx release prepare` with a fresh advisory base → review `target/dx-release/`.
-3. Publish crates in `publish-order.txt` order (deps first), via `cargo publish`
-   per crate, with an explicit go-ahead.
+Public repository: <https://github.com/ngolacloud/dx> (branch `main`).
+Docs on GitHub Pages: <https://ngolacloud.github.io/dx/>. CI + Pages workflows
+run on push.
+
+## crates.io (BLOCKED on a naming decision)
+
+Live check (2026-11-05): `dx`, `dx-cli` and `dx-core` are all **taken** by
+unrelated crates. The 13-crate workspace therefore needs a free prefix to
+publish. Free prefixes confirmed: `ngoladx-*`, `dxkit*`. This is a branding
+decision (claims ~13 names irreversibly), left to the owner — see
+[ADR-0003](docs/adr/0003-nome-publicado-vs-executavel.md). Until then, DX is
+installable from source:
+
+```console
+$ cargo install --git https://github.com/ngolacloud/dx dx-cli
+```
+
+When a prefix is chosen: rename the crate packages, `dx release prepare` with a
+fresh advisory base, then `cargo publish` per crate in `publish-order.txt` order.
 
 ## Honest remaining work (non-blocking)
 
