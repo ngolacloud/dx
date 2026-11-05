@@ -25,13 +25,18 @@ pub enum DenyError {
     Spawn(#[from] std::io::Error),
 }
 
-/// `cargo-deny` está instalado?
+/// `cargo-deny` está instalado? Memoizado no processo (invariante; evita
+/// spawns repetidos a cada chamada do gate — ver dx bench / ADR-0014).
 pub fn available() -> bool {
-    Command::new("cargo")
-        .args(["deny", "--version"])
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
+    use std::sync::OnceLock;
+    static CACHE: OnceLock<bool> = OnceLock::new();
+    *CACHE.get_or_init(|| {
+        Command::new("cargo")
+            .args(["deny", "--version"])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    })
 }
 
 /// Corre `cargo deny check licenses sources bans` em `manifest_dir`.

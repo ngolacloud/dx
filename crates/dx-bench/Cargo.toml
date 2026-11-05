@@ -1,0 +1,16 @@
+[package]
+name = "dx-bench"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "DX — harness de benchmarks: estatísticas (p50/p95) e geração de mock-workspace determinista para medir resolução vs gate."
+
+[dependencies]
+camino.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

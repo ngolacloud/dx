@@ -28,6 +28,7 @@ um gate de segurança da cadeia de dependências, relatórios e perfis de build.
 | `dx release prepare` (validações + SBOM CycloneDX + proveniência + ordem topológica + checksums; prepara≠publica) | **Implementado + testado** |
 | `dx test --suite` configurável + relatórios (terminal/JSON/JUnit/HTML) + thresholds de carga | **Implementado + testado** |
 | Adaptador Seiva: `dx new --template seiva` + `dx add seiva-console-admin` (integração declarativa por âncoras) | **Implementado + testado** |
+| `dx bench` (mock registry; resolução vs gate; cache frio/quente; overhead ≤10% em quente) | **Implementado + testado** |
 | `fetch`/`update`/`release prepare` | **Planeado** — stub honesto (exit 3) |
 | Perfis LLVM / PGO / `release prepare` | **Planeado (inc.4)** |
 | Adaptador Seiva / `seiva-console-admin` | **Planeado (inc.5)** |

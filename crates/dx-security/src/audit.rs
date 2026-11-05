@@ -35,14 +35,23 @@ pub enum AuditError {
 }
 
 /// Versão do scanner (`cargo audit --version`), para a chave do cache.
+/// Memoizada no processo: é invariante para a toolchain, por isso não a
+/// re-sondamos a cada chamada do gate (optimização honesta — não altera o que
+/// é verificado, só evita spawns repetidos; ver dx bench / ADR-0014).
 pub fn scanner_version() -> String {
-    Command::new("cargo")
-        .args(["audit", "--version"])
-        .output()
-        .ok()
-        .filter(|o| o.status.success())
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_else(|| "desconhecida".into())
+    use std::sync::OnceLock;
+    static CACHE: OnceLock<String> = OnceLock::new();
+    CACHE
+        .get_or_init(|| {
+            Command::new("cargo")
+                .args(["audit", "--version"])
+                .output()
+                .ok()
+                .filter(|o| o.status.success())
+                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+                .unwrap_or_else(|| "desconhecida".into())
+        })
+        .clone()
 }
 
 /// Corre `cargo audit --no-fetch --json` no directório do projecto e devolve a

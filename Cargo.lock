@@ -226,6 +226,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dx-bench"
+version = "0.0.1"
+dependencies = [
+ "camino",
+ "serde",
+ "tempfile",
+]
+
+[[package]]
 name = "dx-build"
 version = "0.0.1"
 dependencies = [
@@ -243,6 +252,7 @@ dependencies = [
  "assert_cmd",
  "camino",
  "clap",
+ "dx-bench",
  "dx-build",
  "dx-core",
  "dx-integrity",

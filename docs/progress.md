@@ -40,6 +40,15 @@
 | Caminho de dependências legível (`cargo tree -i`) | Implementado | demo (smallvec → vuln-demo) |
 | `dx audit` / `dx doctor` com códigos de saída coerentes (0/4/5) | Implementado | demo ao vivo |
 
+### Benchmarks + orçamento de overhead (ADR-0014, crate `dx-bench`) — §9
+
+| Item | Estado | Evidência |
+|------|--------|-----------|
+| `dx bench` mede resolução vs gate, cache frio/quente, p50/p95, escala 10/100/1000 (mock determinista) | Implementado+testado | `dx-bench` (4 testes); demo |
+| Orçamento de overhead proposto; meta ≤10% em cache quente CUMPRIDA (~0.3–1.9%) | Implementado | demo (overhead quente 1.9%) |
+| Achado + optimização honesta: memoizar sondas de versão/snapshot (sem desligar verificações) | Implementado | gate-quente 126%→<2% |
+| Download real / rede rápida-lenta / amostra real controlada | **Fora do harness** (reportado em runtime) | grafo por path não descarrega |
+
 ### Adaptador Seiva (ADR-0013, crate `dx-seiva`) — inc.5
 
 | Item | Estado | Evidência |

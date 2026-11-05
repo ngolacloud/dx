@@ -39,19 +39,29 @@ pub fn default_db_path() -> Utf8PathBuf {
     home.join("advisory-db")
 }
 
-/// Lê o timestamp do commit HEAD de um repositório git.
+/// Lê o timestamp do commit HEAD de um repositório git. Memoizado por caminho
+/// no processo (o HEAD é invariante durante uma execução; evita spawns de git
+/// repetidos a cada chamada do gate — ver dx bench / ADR-0014).
 fn git_head_commit_unix(repo: &Utf8Path) -> Option<u64> {
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+    static CACHE: OnceLock<Mutex<HashMap<String, Option<u64>>>> = OnceLock::new();
+    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Some(v) = cache.lock().unwrap().get(repo.as_str()) {
+        return *v;
+    }
     let out = Command::new("git")
         .args(["-C", repo.as_str(), "log", "-1", "--format=%ct"])
         .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    String::from_utf8_lossy(&out.stdout)
-        .trim()
-        .parse::<u64>()
-        .ok()
+        .ok();
+    let value = out.filter(|o| o.status.success()).and_then(|o| {
+        String::from_utf8_lossy(&o.stdout)
+            .trim()
+            .parse::<u64>()
+            .ok()
+    });
+    cache.lock().unwrap().insert(repo.to_string(), value);
+    value
 }
 
 /// Avalia a frescura da base. `now_unix` é injectado para testabilidade
@@ -107,12 +117,25 @@ pub fn evaluate(db_path: &Utf8Path, now_unix: u64, max_age_secs: u64) -> DbStatu
 }
 
 /// Identificador curto do snapshot da base (para a chave do cache de decisão).
+/// Memoizado por caminho no processo (invariante durante a execução).
 pub fn snapshot_id(db_path: &Utf8Path) -> String {
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+    static CACHE: OnceLock<Mutex<HashMap<String, String>>> = OnceLock::new();
+    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Some(v) = cache.lock().unwrap().get(db_path.as_str()) {
+        return v.clone();
+    }
     let out = Command::new("git")
         .args(["-C", db_path.as_str(), "rev-parse", "HEAD"])
         .output();
-    match out {
+    let id = match out {
         Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).trim().to_string(),
         _ => "unknown".into(),
-    }
+    };
+    cache
+        .lock()
+        .unwrap()
+        .insert(db_path.to_string(), id.clone());
+    id
 }

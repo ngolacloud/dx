@@ -10,6 +10,7 @@ members = [
     "crates/dx-release",
     "crates/dx-report",
     "crates/dx-seiva",
+    "crates/dx-bench",
     "crates/dx-cli",
 ]
 
@@ -35,6 +36,7 @@ dx-build = { path = "crates/dx-build", version = "0.0.1" }
 dx-release = { path = "crates/dx-release", version = "0.0.1" }
 dx-report = { path = "crates/dx-report", version = "0.0.1" }
 dx-seiva = { path = "crates/dx-seiva", version = "0.0.1" }
+dx-bench = { path = "crates/dx-bench", version = "0.0.1" }
 sha2 = "0.10"
 
 anyhow = "1"

@@ -8,6 +8,7 @@
 //! (suites configuráveis + relatórios), `audit`, `doctor`, `fetch`,
 //! `release prepare`. `update` fica como stub honesto (exit 3).
 
+mod benchcmd;
 mod buildcmd;
 mod releasecmd;
 mod scaffold;
@@ -141,6 +142,15 @@ enum Commands {
         /// Lista de perfis separada por vírgulas (default: todos).
         #[arg(long)]
         profiles: Option<String>,
+    },
+    /// Benchmark do pipeline de dependências (resolução vs gate; §9).
+    Bench {
+        /// Tamanhos (nº de packages) separados por vírgulas (default: 10,100).
+        #[arg(long)]
+        sizes: Option<String>,
+        /// Repetições por medição (default: 5).
+        #[arg(long, default_value_t = 5)]
+        reps: usize,
     },
     /// PGO: instrumentar → workload → fundir perfis → recompilar → comparar.
     Pgo {
@@ -305,6 +315,7 @@ fn run(cmd: Commands) -> Result<ExitCode> {
             cargo_passthrough(&a)
         }
         Commands::BenchBuild { profiles } => buildcmd::cmd_bench_build(profiles.as_deref()),
+        Commands::Bench { sizes, reps } => benchcmd::cmd_bench(sizes.as_deref(), reps),
         Commands::Pgo { bin, workload } => buildcmd::cmd_pgo(bin.as_deref(), &workload),
         Commands::Run { args } => {
             let mut a = vec!["run".to_string()];
