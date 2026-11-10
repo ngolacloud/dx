@@ -129,11 +129,25 @@ enum Commands {
     Fmt {
         #[arg(long)]
         check: bool,
+        /// Extra arguments passed through to Cargo verbatim, e.g. `-p crate`
+        /// (faithful Cargo compatibility, A-01).
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        cargo_args: Vec<String>,
     },
     /// Lint (delegates to `cargo clippy`).
-    Lint,
+    Lint {
+        /// Extra arguments passed through to Cargo/clippy verbatim, e.g.
+        /// `--features x` or `-- -D warnings` (faithful Cargo compatibility, A-01).
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        cargo_args: Vec<String>,
+    },
     /// Check without building the final binary (delegates to `cargo check`).
-    Check,
+    Check {
+        /// Extra arguments passed through to Cargo verbatim, e.g. `--features x`
+        /// or `-p crate` (faithful Cargo compatibility, A-01).
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        cargo_args: Vec<String>,
+    },
     /// Build (delegates to `cargo build`).
     Build {
         #[arg(long)]
@@ -151,6 +165,11 @@ enum Commands {
         /// secrets, resource limits). Uses `--offline` (deps already fetched).
         #[arg(long)]
         isolated: bool,
+        /// Extra arguments passed through to Cargo verbatim, e.g. `--features x`,
+        /// `-p crate` or `--target ...` (faithful Cargo compatibility, A-01). Put
+        /// dx's own flags (`--release`, `--profile`, …) before these.
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        cargo_args: Vec<String>,
     },
     /// Measure a clean build per profile (time/memory/size).
     BenchBuild {
@@ -359,18 +378,27 @@ fn run(cmd: Commands) -> Result<ExitCode> {
             manifest_path,
             dry,
         } => cmd_remove(&name, dev, build, manifest_path, dry.dry_run),
-        Commands::Fmt { check } => {
+        Commands::Fmt { check, cargo_args } => {
+            // Cargo-level passthrough (e.g. `-p crate`) goes BEFORE the `--`, which
+            // separates Cargo's args from rustfmt's own `--check`.
             let mut a = vec!["fmt".to_string()];
+            a.extend(cargo_args);
             if check {
                 a.push("--".into());
                 a.push("--check".into());
             }
             cargo_passthrough(&a)
         }
-        Commands::Lint => cargo_passthrough(&["clippy".into()]),
-        Commands::Check => {
+        Commands::Lint { cargo_args } => {
+            let mut a = vec!["clippy".to_string()];
+            a.extend(restore_separator(cargo_args, raw_has_separator()));
+            cargo_passthrough(&a)
+        }
+        Commands::Check { cargo_args } => {
             emit_trust_hint();
-            cargo_passthrough(&["check".into()])
+            let mut a = vec!["check".to_string()];
+            a.extend(restore_separator(cargo_args, raw_has_separator()));
+            cargo_passthrough(&a)
         }
         Commands::Build {
             release,
@@ -378,6 +406,7 @@ fn run(cmd: Commands) -> Result<ExitCode> {
             native,
             measure,
             isolated,
+            cargo_args,
         } => {
             if isolated {
                 return security::cmd_build_isolated(release);
@@ -394,6 +423,7 @@ fn run(cmd: Commands) -> Result<ExitCode> {
             if release {
                 a.push("--release".into());
             }
+            a.extend(restore_separator(cargo_args, raw_has_separator()));
             cargo_passthrough(&a)
         }
         Commands::BenchBuild { profiles } => buildcmd::cmd_bench_build(profiles.as_deref()),
@@ -820,6 +850,26 @@ fn print_plan(plan: &Plan) {
 /// processo `dx` pelo `cargo` via `execvp` — zero fork+wait, zero processo
 /// intermédio; o código de saída do `cargo` torna-se o do comando. Em não-Unix,
 /// `spawn`+`status` (fallback correcto). Preserva sinais via o exit status.
+/// Restores a leading `--` that clap strips from a `trailing_var_arg` tail (A-01).
+///
+/// clap consumes a `--` that is the FIRST passthrough token — so `dx lint --
+/// -D warnings` arrives as `["-D","warnings"]` — but preserves one that follows a
+/// Cargo-level flag (`--features x -- -D warnings` stays intact). Faithful Cargo
+/// compatibility needs the separator either way: if the raw argv carried a `--`
+/// that the captured tail no longer contains, put it back at the front, so the
+/// handler emits `cargo clippy -- -D warnings`, not `cargo clippy -D warnings`.
+fn restore_separator(mut cargo_args: Vec<String>, raw_had_separator: bool) -> Vec<String> {
+    if raw_had_separator && !cargo_args.iter().any(|a| a == "--") && !cargo_args.is_empty() {
+        cargo_args.insert(0, "--".to_string());
+    }
+    cargo_args
+}
+
+/// Whether the process's raw arguments contain a `--` separator.
+fn raw_has_separator() -> bool {
+    std::env::args().any(|a| a == "--")
+}
+
 fn cargo_passthrough(args: &[String]) -> Result<ExitCode> {
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
     #[cfg(unix)]
@@ -861,5 +911,82 @@ fn emit_trust_hint() {
         dx_security::TrustState::Unknown => eprintln!(
             "note: this project has no trust baseline yet — run `dx audit` (DX_NO_TRUST_HINT=1 to silence)."
         ),
+    }
+}
+
+#[cfg(test)]
+mod tests_cargo_passthrough {
+    use super::{restore_separator, Cli, Commands};
+    use clap::Parser;
+
+    fn parse(argv: &[&str]) -> Commands {
+        Cli::try_parse_from(argv).expect("parses").command
+    }
+
+    #[test]
+    fn build_forwards_cargo_flags_after_its_own() {
+        // A-01: `--features`/`-p` are no longer rejected; dx's own `--release` is
+        // still parsed, and the Cargo flags pass through verbatim.
+        match parse(&["dx", "build", "--release", "--features", "foo", "-p", "bar"]) {
+            Commands::Build {
+                release,
+                cargo_args,
+                ..
+            } => {
+                assert!(release, "dx's own --release is still parsed");
+                assert_eq!(cargo_args, vec!["--features", "foo", "-p", "bar"]);
+            }
+            _ => panic!("expected Build"),
+        }
+    }
+
+    #[test]
+    fn check_forwards_cargo_flags() {
+        match parse(&["dx", "check", "--features", "x"]) {
+            Commands::Check { cargo_args } => assert_eq!(cargo_args, vec!["--features", "x"]),
+            _ => panic!("expected Check"),
+        }
+    }
+
+    #[test]
+    fn lint_forwards_rustc_flags_after_a_double_dash() {
+        // clap strips the LEADING `--` from the trailing tail…
+        match parse(&["dx", "lint", "--", "-D", "warnings"]) {
+            Commands::Lint { cargo_args } => {
+                assert_eq!(cargo_args, vec!["-D", "warnings"]);
+                // …and `restore_separator` puts it back, so clippy is invoked as
+                // `clippy -- -D warnings` (the raw argv had a `--`), not
+                // `clippy -D warnings` (which cargo would reject).
+                assert_eq!(
+                    restore_separator(cargo_args, true),
+                    vec!["--", "-D", "warnings"]
+                );
+            }
+            _ => panic!("expected Lint"),
+        }
+    }
+
+    #[test]
+    fn restore_separator_only_adds_a_dash_when_one_was_stripped() {
+        // Leading `--` stripped by clap (raw had it, tail lost it) → restored.
+        assert_eq!(
+            restore_separator(vec!["-D".into(), "warnings".into()], true),
+            vec!["--", "-D", "warnings"]
+        );
+        // A plain cargo flag with no `--` in the raw argv → left untouched.
+        assert_eq!(
+            restore_separator(vec!["--features".into(), "x".into()], false),
+            vec!["--features", "x"]
+        );
+        // An INNER `--` clap preserved → not duplicated.
+        assert_eq!(
+            restore_separator(
+                vec!["--features".into(), "x".into(), "--".into(), "-D".into()],
+                true
+            ),
+            vec!["--features", "x", "--", "-D"]
+        );
+        // Empty tail → nothing added even if the raw argv had a bare `--`.
+        assert_eq!(restore_separator(vec![], true), Vec::<String>::new());
     }
 }
