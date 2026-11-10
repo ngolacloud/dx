@@ -13,6 +13,7 @@ members = [
     "crates/dx-bench",
     "crates/dx-env",
     "crates/dx-tool",
+    "crates/dx-toolchain",
     "crates/dx-cli",
 ]
 
@@ -41,6 +42,7 @@ dx-seiva = { package = "ngoladx-seiva", path = "crates/dx-seiva", version = "0.0
 dx-bench = { package = "ngoladx-bench", path = "crates/dx-bench", version = "0.0.1" }
 dx-env = { package = "ngoladx-env", path = "crates/dx-env", version = "0.0.1" }
 dx-tool = { package = "ngoladx-tool", path = "crates/dx-tool", version = "0.0.1" }
+dx-toolchain = { package = "ngoladx-toolchain", path = "crates/dx-toolchain", version = "0.0.1" }
 sha2 = "0.10"
 
 anyhow = "1"

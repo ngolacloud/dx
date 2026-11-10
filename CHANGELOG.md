@@ -13,6 +13,16 @@ changes, security before execution, predictable recovery — Cargo-compatible.
   ADR-0015 no longer suggest replacing Cargo, and nothing promises DX is "faster
   than Cargo".
 
+### Added — `dx toolchain` ([ADR-0022](docs/adr/0022-toolchain-pinning.md))
+- **Project toolchain pinning** (`dx toolchain list|install|pin|use`), composing
+  rustup. The pin is the native `rust-toolchain.toml` (works without DX); DX adds
+  a provenance record (`dx-toolchain.lock`) of what the channel resolved to
+  (rustc version/commit/host). `dx environment verify` now prints a
+  `dx toolchain use <channel>` remediation on rustc/cargo/host drift. New crate
+  `ngoladx-toolchain` (`dx_toolchain`). Hard rule: a `pin` never triggers a
+  toolchain download — provenance is probed only when the exact channel is
+  already installed. No fallback: absent rustup is refused honestly.
+
 ### Added — overhead-≈0 hot path ([ADR-0021](docs/adr/0021-fast-path-overhead-zero.md))
 - **`exec` passthrough.** On Unix, `dx build`/`run`/`check`/`fmt`/`lint` replace
   the `dx` process image with `cargo` via `execvp` — zero fork+wait, zero

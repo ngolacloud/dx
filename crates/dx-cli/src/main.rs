@@ -22,6 +22,7 @@ mod seivacmd;
 mod stage;
 mod suspect;
 mod testcmd;
+mod toolchaincmd;
 mod toolcmd;
 mod updatecmd;
 
@@ -256,6 +257,11 @@ enum Commands {
         #[command(subcommand)]
         what: toolcmd::ToolAction,
     },
+    /// Project toolchain pinning via rust-toolchain.toml (list/install/pin/use).
+    Toolchain {
+        #[command(subcommand)]
+        what: toolchaincmd::ToolchainAction,
+    },
     /// Export/verify an offline, verifiable build bundle.
     Bundle {
         #[command(subcommand)]
@@ -460,6 +466,7 @@ fn run(cmd: Commands) -> Result<ExitCode> {
         },
         Commands::Environment { what } => envcmd::run(&what),
         Commands::Tool { what } => toolcmd::run(what),
+        Commands::Toolchain { what } => toolchaincmd::run(&what),
         Commands::Bundle { what } => bundlecmd::run(what),
     }
 }

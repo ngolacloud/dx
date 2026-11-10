@@ -50,6 +50,8 @@ Ver [ADR-0020](docs/adr/0020-camada-de-confianca-nao-substituto.md) e
 | **`dx update --plan/--security/--apply`**: corrigir vulnerabilidade transitiva com alteração mínima, validada e reversível | **Implementado + testado** |
 | **`dx environment capture/verify`**: registo reproduzível do ambiente de build (toolchain/tools/segurança/lockfile) + detecção de drift | **Implementado + testado** |
 | **`dx tool install/run/list`**: ferramentas fixadas por projecto, com proveniência (sha256), anti-tamper, sem fallback, `run --isolated` | **Implementado + testado** |
+| **`dx toolchain list/install/pin/use`**: pin de toolchain por projecto via `rust-toolchain.toml` nativo + proveniência (`dx-toolchain.lock`); remediação de drift no `environment verify`; compõe rustup, `pin` nunca descarrega ([ADR-0022](docs/adr/0022-toolchain-pinning.md)) | **Implementado + testado** |
+| **Overhead-≈0 no caminho quente**: `exec` passthrough + `fast_trust` sem spawn; nota de confiança só quando ≠aprovado ([ADR-0021](docs/adr/0021-fast-path-overhead-zero.md)) | **Implementado + testado** |
 | **`dx bundle export/verify`**: pacote offline verificável (ambiente + SBOM + vendor + hashes) para on-premises | **Implementado + testado** |
 | Adaptador Seiva: `dx new --template seiva` + `dx add seiva-console-admin` (integração declarativa por âncoras) | **Implementado + testado** |
 | `dx bench` (mock registry; resolução vs gate; cache frio/quente; overhead ≤10% em quente) | **Implementado + testado** |

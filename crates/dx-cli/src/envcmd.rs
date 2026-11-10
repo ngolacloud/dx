@@ -102,6 +102,16 @@ pub fn cmd_verify() -> Result<ExitCode> {
             "\n\u{2717} {} critical drift(s) from the recorded environment.",
             critical.len()
         );
+        // Toolchain drift (rustc/cargo/host) is remediable with `dx toolchain`.
+        if critical
+            .iter()
+            .any(|d| matches!(d.field.as_str(), "rustc" | "cargo" | "host_target"))
+        {
+            let hint = dx_toolchain::read_pin(&root)
+                .map(|p| format!("dx toolchain use {}", p.channel))
+                .unwrap_or_else(|| "dx toolchain list".into());
+            eprintln!("  remediation: `{hint}` to match the recorded toolchain.");
+        }
         Ok(ExitCode::from(4))
     }
 }

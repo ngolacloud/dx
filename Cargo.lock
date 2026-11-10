@@ -431,6 +431,7 @@ dependencies = [
  "ngoladx-security",
  "ngoladx-seiva",
  "ngoladx-tool",
+ "ngoladx-toolchain",
  "predicates",
  "serde_json",
  "sha2",
@@ -546,6 +547,17 @@ dependencies = [
  "serde_json",
  "tempfile",
  "toml",
+]
+
+[[package]]
+name = "ngoladx-toolchain"
+version = "0.0.1"
+dependencies = [
+ "camino",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "toml_edit",
 ]
 
 [[package]]
