@@ -11,8 +11,10 @@
 /// The `cargo metadata` JSON schema version DX parses.
 pub const REQUIRED_METADATA_FORMAT: u64 = 1;
 
-/// Minimum supported Rust/Cargo (the workspace MSRV).
-pub const MSRV: (u64, u64) = (1, 82);
+/// Minimum supported Rust/Cargo (the workspace MSRV). Raised to 1.85 because the
+/// test dependency graph (`assert_cmd`) now requires edition 2024 (stabilized in
+/// 1.85); DX's own code stays edition 2021.
+pub const MSRV: (u64, u64) = (1, 85);
 /// Highest Cargo minor DX has been tested against. Newer is allowed but flagged
 /// as "untested" rather than silently trusted.
 pub const MAX_TESTED: (u64, u64) = (1, 96);
@@ -151,7 +153,7 @@ mod tests {
         assert_eq!(
             classify(&Version {
                 major: 1,
-                minor: 81,
+                minor: 84,
                 patch: 9
             }),
             Support::TooOld
@@ -159,7 +161,7 @@ mod tests {
         assert_eq!(
             classify(&Version {
                 major: 1,
-                minor: 82,
+                minor: 85,
                 patch: 0
             }),
             Support::Supported

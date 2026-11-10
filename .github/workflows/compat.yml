@@ -27,7 +27,7 @@ jobs:
       matrix:
         # MSRV (ADR-0025) + the usual channels. beta/nightly are allowed to
         # fail (they exercise unreleased Cargo changes early, as a warning).
-        toolchain: ["1.82", stable, beta, nightly]
+        toolchain: ["1.85", stable, beta, nightly]
         include:
           - toolchain: beta
             experimental: true

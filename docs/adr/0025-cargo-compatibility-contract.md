@@ -28,7 +28,7 @@ sites reais):
 | `cargo vendor` | bundle offline verificável (`dx bundle`) | não |
 | `rustc -vV` | proveniência de toolchain (`dx toolchain`, `dx environment`) | sim |
 
-O DX fixa o **intervalo testado**: MSRV `1.82` (do workspace) a `MAX_TESTED`
+O DX fixa o **intervalo testado**: MSRV `1.85` (do workspace) a `MAX_TESTED`
 `1.96`. Uma versão mais nova é **permitida mas sinalizada** («newer-than-tested»),
 nunca silenciosamente confiada; abaixo do MSRV é recusada.
 
@@ -42,7 +42,7 @@ também no `dx doctor`.
 
 ### 3. Matriz de CI (`.github/workflows/compat.yml`)
 
-Corre a suite + `dx compat` em `1.82`/`stable`/`beta`/`nightly` (beta/nightly
+Corre a suite + `dx compat` em `1.85`/`stable`/`beta`/`nightly` (beta/nightly
 podem falhar — aviso precoce de drift do Cargo ainda não lançado), semanalmente
 e em cada PR. Assim, drift de formato do Cargo é apanhado **aqui**.
 
