@@ -13,6 +13,15 @@ changes, security before execution, predictable recovery — Cargo-compatible.
   ADR-0015 no longer suggest replacing Cargo, and nothing promises DX is "faster
   than Cargo".
 
+### Decided — discovery name ([ADR-0028](docs/adr/0028-discovery-name.md))
+- Re-checked crates.io (2026-11-10): `dx` (0.0.0, yanked, foreign owner — name
+  reserved), `dx-cli` (0.3.1, active), `dx-core` (0.3.0, active) all remain
+  unavailable. Item closed with no rename: the **executable is already `dx`**;
+  the one-line installer (which installs the `dx` binary) is the primary
+  discovery path, with `cargo install ngoladx-cli` for from-source. Petitioning
+  the yanked `dx` name and `cargo binstall` metadata are noted as future, not
+  pursued.
+
 ### Added — bundle reproducibility ([ADR-0027](docs/adr/0027-bundle-reproducibility.md))
 - **`dx bundle reproduce <dir>`** re-vendors from the bundle's own `Cargo.lock`
   into a scratch dir and proves the `vendor/` aggregate hash matches the one
