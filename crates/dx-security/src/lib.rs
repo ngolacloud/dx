@@ -18,6 +18,7 @@ pub mod db;
 pub mod deny;
 pub mod global;
 pub mod policy;
+pub mod prescreen;
 pub mod verdict;
 
 pub use audit::{inverse_dependency_path, Finding};
@@ -43,6 +44,10 @@ pub struct GateOutcome {
     /// `true` se o veredicto veio da **cache global** (`~/.dx/verdicts`),
     /// partilhada entre worktrees/CI/equipas (ADR-0024). Implica `from_cache`.
     pub from_global: bool,
+    /// `true` se o BLOCK veio do **pré-screen por crate** (ADR-0026): um
+    /// `crate@versão` já conhecido como bloqueado sob este snapshot. Só ocorre
+    /// em decisões `Blocked` — nunca acelera um `Approved`.
+    pub from_prescreen: bool,
     /// `true` se o `cargo-deny` correu (licenças/origens/bans cobertos).
     /// `false` ⇒ essas dimensões ficam "sem cobertura" (honestidade, não falha).
     pub deny_covered: bool,
@@ -86,6 +91,7 @@ pub fn run_gate(
             verdict: cached,
             from_cache: true,
             from_global: false,
+            from_prescreen: false,
             deny_covered,
         });
     }
@@ -95,6 +101,25 @@ pub fn run_gate(
             verdict: cached,
             from_cache: true,
             from_global: true,
+            from_prescreen: false,
+            deny_covered,
+        });
+    }
+
+    // Pré-screen por crate (ADR-0026): se algum crate do lockfile já é conhecido
+    // como bloqueado sob este snapshot+política, BLOQUEIA já — sem correr o gate
+    // completo. São: um bloqueio de advisory por crate é sempre um bloqueio.
+    // NUNCA acelera um Approved (o caminho Approved corre sempre audit+deny,
+    // incl. verificações de nível-grafo do cargo-deny).
+    if let Some(blocking) = prescreen::screen(&key.db_snapshot, policy, &lockfile) {
+        let v = verdict::evaluate(blocking, policy, db_status, key);
+        verdict::save(root, &v)?;
+        let _ = global::save_global(&v);
+        return Ok(GateOutcome {
+            verdict: v,
+            from_cache: false,
+            from_global: false,
+            from_prescreen: true,
             deny_covered,
         });
     }
@@ -109,10 +134,12 @@ pub fn run_gate(
     let v = verdict::evaluate(findings, policy, db_status, key);
     verdict::save(root, &v)?;
     let _ = global::save_global(&v); // publicar na cache global (best-effort)
+    prescreen::record(&v.key.db_snapshot, &v.findings); // alimentar o pré-screen
     Ok(GateOutcome {
         verdict: v,
         from_cache: false,
         from_global: false,
+        from_prescreen: false,
         deny_covered,
     })
 }

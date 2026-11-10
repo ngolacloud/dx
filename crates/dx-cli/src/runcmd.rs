@@ -75,6 +75,7 @@ pub fn run_script(path: &str, script_args: &[String], offline: bool) -> Result<E
         &root,
         outcome.from_cache,
         outcome.from_global,
+        outcome.from_prescreen,
         outcome.deny_covered,
     );
 

@@ -13,6 +13,17 @@ changes, security before execution, predictable recovery — Cargo-compatible.
   ADR-0015 no longer suggest replacing Cargo, and nothing promises DX is "faster
   than Cargo".
 
+### Added — per-crate fast-BLOCK pre-screen ([ADR-0026](docs/adr/0026-per-crate-fast-block-prescreen.md))
+- **Cross-project network effect, BLOCK-only.** `dx_security::prescreen` caches,
+  per advisory-db snapshot, the `crate@version`s known to carry a blocking
+  cargo-audit advisory (`~/.dx/advisories`, `DX_ADVISORY_DIR`). A *different*
+  project pulling a known-vulnerable crate is blocked immediately, without
+  running the full gate ("fast-blocked by per-crate pre-screen"). Sound by
+  construction: it can only ever reach **Blocked** — never Approved; the Approved
+  path always runs the full gate (audit + graph-level deny). Only per-crate-sound
+  cargo-audit categories are cached (deny/graph-level excluded); the block is
+  re-evaluated under the current policy and matched to the same snapshot.
+
 ### Added — Cargo compatibility contract ([ADR-0025](docs/adr/0025-cargo-compatibility-contract.md))
 - **`dx compat`** probes the host Cargo against the interfaces DX depends on
   (`cargo metadata --format-version 1`, `cargo tree`, `generate-lockfile`,
