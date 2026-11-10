@@ -1,0 +1,15 @@
+[package]
+name = "ngoladx-script"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "DX — single-file Rust script support: parse the inline dependency frontmatter (cargo -Zscript style) and synthesize an ephemeral, auditable package manifest."
+
+[lib]
+name = "dx_script"
+
+[dependencies]
+toml_edit.workspace = true

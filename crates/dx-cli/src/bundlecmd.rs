@@ -3,14 +3,18 @@
 //! Bundles the environment record, SBOM, Cargo.toml/Cargo.lock and the vendored
 //! dependency sources into one directory, with a `bundle.json` manifest that
 //! records a sha256 per top-level file and an aggregate hash of `vendor/`.
-//! `verify` recomputes the hashes and reports tampering. Honest scope: a
-//! verifiable offline package, NOT a byte-for-byte reproducibility claim.
+//! `verify` recomputes the hashes and reports tampering. `reproduce` re-vendors
+//! from the bundle's Cargo.lock and proves the dependency sources are
+//! byte-for-byte reproducible (ADR-0027). Honest scope: the *vendored sources*
+//! reproduce for a given lockfile; the timestamp and host environment record do
+//! not, and are excluded from that claim.
 
 use std::process::{Command, ExitCode};
 
 use anyhow::{bail, Context, Result};
 use camino::{Utf8Path, Utf8PathBuf};
 use serde_json::json;
+use tempfile::TempDir;
 
 use crate::security::now_unix;
 
@@ -229,10 +233,80 @@ pub fn cmd_verify(dir: &Utf8Path) -> Result<ExitCode> {
     }
 }
 
+/// `dx bundle reproduce <dir>` — prove the vendored dependency sources are
+/// byte-for-byte reproducible (ADR-0027).
+///
+/// Re-vendors from the bundle's own `Cargo.lock` into a scratch dir and compares
+/// the `vendor/` aggregate hash against the one recorded in `bundle.json`. The
+/// timestamp and `environment.json` are host/time-specific and deliberately
+/// excluded — only the dependency sources (the code you would build) must be
+/// deterministic for a given lockfile.
+pub fn cmd_reproduce(dir: &Utf8Path) -> Result<ExitCode> {
+    let manifest_path = dir.join("bundle.json");
+    let text = std::fs::read_to_string(manifest_path.as_std_path())
+        .with_context(|| format!("read {manifest_path} (is this a dx bundle?)"))?;
+    let m: serde_json::Value = serde_json::from_str(&text).context("parse bundle.json")?;
+    let want = m
+        .get("vendor")
+        .and_then(|v| v.get("aggregate_sha256"))
+        .and_then(|x| x.as_str())
+        .ok_or_else(|| anyhow::anyhow!("bundle.json has no vendor aggregate to reproduce"))?;
+
+    let cargo_toml = dir.join("Cargo.toml");
+    let cargo_lock = dir.join("Cargo.lock");
+    if !cargo_toml.exists() || !cargo_lock.exists() {
+        bail!("bundle is missing Cargo.toml/Cargo.lock — cannot re-vendor");
+    }
+
+    eprintln!("== dx bundle reproduce == ({dir})");
+    let guard = TempDir::new().context("create scratch dir")?;
+    let scratch = Utf8Path::from_path(guard.path())
+        .ok_or_else(|| anyhow::anyhow!("non-UTF8 scratch path"))?
+        .to_owned();
+    copy_into(&cargo_toml, &scratch.join("Cargo.toml"))?;
+    copy_into(&cargo_lock, &scratch.join("Cargo.lock"))?;
+    // A minimal target so cargo accepts the manifest; the vendored dependency
+    // sources do not depend on our own source. `main.rs` satisfies both bin and
+    // lib manifests.
+    std::fs::create_dir_all(scratch.join("src").as_std_path()).context("create scratch src/")?;
+    std::fs::write(scratch.join("src/main.rs").as_std_path(), "fn main() {}\n")
+        .context("write scratch main.rs")?;
+
+    eprintln!("Re-vendoring from the bundle's Cargo.lock...");
+    let vendor = scratch.join("vendor");
+    let v = Command::new(std::env::var("CARGO").unwrap_or_else(|_| "cargo".into()))
+        .arg("vendor")
+        .arg(vendor.as_str())
+        .current_dir(scratch.as_std_path())
+        .output()
+        .context("cargo vendor")?;
+    if !v.status.success() {
+        bail!(
+            "cargo vendor failed:\n{}",
+            String::from_utf8_lossy(&v.stderr)
+        );
+    }
+
+    let (count, got) = hash_tree(&vendor);
+    eprintln!("  re-vendored {count} file(s)");
+    eprintln!("  recorded aggregate:    {want}");
+    eprintln!("  reproduced aggregate:  {got}");
+    if got == want {
+        eprintln!("\n\u{2713} Reproducible: the vendored dependency sources match the bundle byte-for-byte.");
+        Ok(ExitCode::SUCCESS)
+    } else {
+        eprintln!(
+            "\n\u{2717} NOT reproducible: the re-vendored sources differ from the bundle's recorded hash."
+        );
+        Ok(ExitCode::from(4))
+    }
+}
+
 pub fn run(action: BundleAction) -> Result<ExitCode> {
     match action {
         BundleAction::Export { out } => cmd_export(out.as_deref()),
         BundleAction::Verify { dir } => cmd_verify(&dir),
+        BundleAction::Reproduce { dir } => cmd_reproduce(&dir),
     }
 }
 
@@ -246,6 +320,11 @@ pub enum BundleAction {
     },
     /// Verify a bundle's integrity (file hashes + vendor aggregate).
     Verify {
+        /// Bundle directory.
+        dir: Utf8PathBuf,
+    },
+    /// Re-vendor from the bundle's Cargo.lock and prove the sources reproduce.
+    Reproduce {
         /// Bundle directory.
         dir: Utf8PathBuf,
     },

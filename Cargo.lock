@@ -421,6 +421,7 @@ dependencies = [
  "clap_complete",
  "ngoladx-bench",
  "ngoladx-build",
+ "ngoladx-compat",
  "ngoladx-core",
  "ngoladx-env",
  "ngoladx-integrity",
@@ -428,15 +429,21 @@ dependencies = [
  "ngoladx-release",
  "ngoladx-report",
  "ngoladx-sandbox",
+ "ngoladx-script",
  "ngoladx-security",
  "ngoladx-seiva",
  "ngoladx-tool",
+ "ngoladx-toolchain",
  "predicates",
  "serde_json",
  "sha2",
  "tempfile",
  "toml",
 ]
+
+[[package]]
+name = "ngoladx-compat"
+version = "0.0.1"
 
 [[package]]
 name = "ngoladx-core"
@@ -519,6 +526,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ngoladx-script"
+version = "0.0.1"
+dependencies = [
+ "toml_edit",
+]
+
+[[package]]
 name = "ngoladx-security"
 version = "0.0.1"
 dependencies = [
@@ -546,6 +560,17 @@ dependencies = [
  "serde_json",
  "tempfile",
  "toml",
+]
+
+[[package]]
+name = "ngoladx-toolchain"
+version = "0.0.1"
+dependencies = [
+ "camino",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "toml_edit",
 ]
 
 [[package]]

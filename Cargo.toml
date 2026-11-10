@@ -13,13 +13,16 @@ members = [
     "crates/dx-bench",
     "crates/dx-env",
     "crates/dx-tool",
+    "crates/dx-toolchain",
+    "crates/dx-script",
+    "crates/dx-compat",
     "crates/dx-cli",
 ]
 
 [workspace.package]
 version = "0.0.1"
 edition = "2021"
-rust-version = "1.82"
+rust-version = "1.85"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/ngolacloud/dx"
 authors = ["Walter Angolar <angolarti@gmail.com>"]
@@ -41,6 +44,9 @@ dx-seiva = { package = "ngoladx-seiva", path = "crates/dx-seiva", version = "0.0
 dx-bench = { package = "ngoladx-bench", path = "crates/dx-bench", version = "0.0.1" }
 dx-env = { package = "ngoladx-env", path = "crates/dx-env", version = "0.0.1" }
 dx-tool = { package = "ngoladx-tool", path = "crates/dx-tool", version = "0.0.1" }
+dx-toolchain = { package = "ngoladx-toolchain", path = "crates/dx-toolchain", version = "0.0.1" }
+dx-script = { package = "ngoladx-script", path = "crates/dx-script", version = "0.0.1" }
+dx-compat = { package = "ngoladx-compat", path = "crates/dx-compat", version = "0.0.1" }
 sha2 = "0.10"
 
 anyhow = "1"

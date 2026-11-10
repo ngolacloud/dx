@@ -1,0 +1,52 @@
+name: Cargo compatibility matrix
+
+# DX composes Cargo (ADR-0002/0020/0025): it delegates to a set of stable
+# cargo/rustc interfaces instead of reimplementing the resolver/compiler. This
+# matrix guards that coupling — the suite + `dx compat` run against several Rust
+# toolchains, so a change in `cargo metadata`/`cargo tree` shape is caught here
+# rather than at some downstream failure.
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  schedule:
+    # Weekly, to catch Cargo format drift in new stable/beta/nightly releases.
+    - cron: "0 6 * * 1"
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  compat:
+    name: test + dx compat (${{ matrix.toolchain }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # MSRV (ADR-0025) + the usual channels. beta/nightly are allowed to
+        # fail (they exercise unreleased Cargo changes early, as a warning).
+        toolchain: ["1.85", stable, beta, nightly]
+        include:
+          - toolchain: beta
+            experimental: true
+          - toolchain: nightly
+            experimental: true
+    continue-on-error: ${{ matrix.experimental || false }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.toolchain }}
+      - name: Test (workspace)
+        run: cargo test --workspace
+      - name: Build the dx binary
+        run: cargo build -p ngoladx-cli
+      - name: Probe the Cargo compatibility contract
+        # Run inside the repo (a real Cargo project) so the metadata-format
+        # probe is exercised. A broken REQUIRED interface fails the job.
+        run: ./target/debug/dx compat

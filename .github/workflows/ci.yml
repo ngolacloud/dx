@@ -40,9 +40,47 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Install scanners
         run: cargo install cargo-audit cargo-deny --locked
-      - name: Refresh advisory database
-        run: cargo audit fetch || true
+      - name: Ensure a fresh advisory database
+        # `cargo audit fetch` can fail on the runner (rate-limit/transient),
+        # leaving ~/.cargo/advisory-db absent so `dx audit` cannot load it. Fall
+        # back to a shallow git clone so the base is always present AND fresh
+        # (latest commit) — the gate then runs for real instead of erroring out.
+        run: |
+          set -eux
+          cargo audit fetch || true
+          if [ ! -d "$HOME/.cargo/advisory-db/crates" ]; then
+            rm -rf "$HOME/.cargo/advisory-db"
+            git clone --depth 1 https://github.com/rustsec/advisory-db "$HOME/.cargo/advisory-db"
+          fi
+          test -d "$HOME/.cargo/advisory-db/crates"
       - name: Build dx
         run: cargo build -p ngoladx-cli
       - name: dx audit
         run: ./target/debug/dx audit
+
+  # Prove a bundle's vendored sources reproduce from its own lockfile (ADR-0027).
+  # Best-effort: depends on crates.io network.
+  reproducibility:
+    name: dx bundle reproduce (vendored sources)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build dx
+        run: cargo build -p ngoladx-cli
+      - name: Export and reproduce a bundle
+        env:
+          DX_MAX_DB_AGE_SECS: "999999999"
+        run: |
+          set -euo pipefail
+          DX="$PWD/target/debug/dx"
+          work="$(mktemp -d)"
+          cd "$work"
+          "$DX" new repro --bin
+          cd repro
+          "$DX" add anyhow@1 || true
+          cargo generate-lockfile
+          "$DX" bundle export --out ./bund
+          "$DX" bundle reproduce ./bund

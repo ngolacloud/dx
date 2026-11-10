@@ -1,0 +1,21 @@
+[package]
+name = "ngoladx-toolchain"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "DX — project toolchain pinning via the native rust-toolchain.toml, wrapping rustup with provenance (resolved rustc version/commit) and drift remediation."
+
+[lib]
+name = "dx_toolchain"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+toml_edit.workspace = true
+camino.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

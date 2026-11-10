@@ -12,16 +12,19 @@
 mod benchcmd;
 mod buildcmd;
 mod bundlecmd;
+mod compatcmd;
 mod complete;
 mod envcmd;
 mod plancmd;
 mod releasecmd;
+mod runcmd;
 mod scaffold;
 mod security;
 mod seivacmd;
 mod stage;
 mod suspect;
 mod testcmd;
+mod toolchaincmd;
 mod toolcmd;
 mod updatecmd;
 
@@ -172,7 +175,8 @@ enum Commands {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         workload: Vec<String>,
     },
-    /// Run (delegates to `cargo run`).
+    /// Run: `dx run <file.rs>` runs a single-file script through the security
+    /// gate; otherwise delegates to `cargo run`.
     Run {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
@@ -211,6 +215,8 @@ enum Commands {
     Audit,
     /// Diagnose the environment.
     Doctor,
+    /// Probe the host Cargo against DX's compatibility contract.
+    Compat,
     /// Update dependencies: explain, security-fix, apply (with recovery).
     Update {
         /// Restrict the update to one package (minimal change).
@@ -255,6 +261,11 @@ enum Commands {
     Tool {
         #[command(subcommand)]
         what: toolcmd::ToolAction,
+    },
+    /// Project toolchain pinning via rust-toolchain.toml (list/install/pin/use).
+    Toolchain {
+        #[command(subcommand)]
+        what: toolchaincmd::ToolchainAction,
     },
     /// Export/verify an offline, verifiable build bundle.
     Bundle {
@@ -357,7 +368,10 @@ fn run(cmd: Commands) -> Result<ExitCode> {
             cargo_passthrough(&a)
         }
         Commands::Lint => cargo_passthrough(&["clippy".into()]),
-        Commands::Check => cargo_passthrough(&["check".into()]),
+        Commands::Check => {
+            emit_trust_hint();
+            cargo_passthrough(&["check".into()])
+        }
         Commands::Build {
             release,
             profile,
@@ -375,6 +389,7 @@ fn run(cmd: Commands) -> Result<ExitCode> {
                 // --native/--measure implicam o perfil release equilibrado.
                 return buildcmd::cmd_build_profile("release", native, measure);
             }
+            emit_trust_hint();
             let mut a = vec!["build".to_string()];
             if release {
                 a.push("--release".into());
@@ -385,6 +400,12 @@ fn run(cmd: Commands) -> Result<ExitCode> {
         Commands::Bench { sizes, reps } => benchcmd::cmd_bench(sizes.as_deref(), reps),
         Commands::Pgo { bin, workload } => buildcmd::cmd_pgo(bin.as_deref(), &workload),
         Commands::Run { args } => {
+            // Script mode: `dx run <file.rs> [args]` runs a single-file script
+            // through the security gate before executing (ADR-0023).
+            if let Some((script, rest)) = runcmd::detect_script(&args) {
+                return runcmd::run_script(script, rest, false);
+            }
+            emit_trust_hint();
             let mut a = vec!["run".to_string()];
             if !args.is_empty() {
                 a.push("--".into());
@@ -434,6 +455,7 @@ fn run(cmd: Commands) -> Result<ExitCode> {
             security::cmd_audit(&root)
         }
         Commands::Doctor => security::cmd_doctor(),
+        Commands::Compat => compatcmd::run(),
         Commands::Update {
             name,
             plan,
@@ -455,6 +477,7 @@ fn run(cmd: Commands) -> Result<ExitCode> {
         },
         Commands::Environment { what } => envcmd::run(&what),
         Commands::Tool { what } => toolcmd::run(what),
+        Commands::Toolchain { what } => toolchaincmd::run(&what),
         Commands::Bundle { what } => bundlecmd::run(what),
     }
 }
@@ -672,6 +695,8 @@ fn cmd_add(a: AddArgs) -> Result<ExitCode> {
                 &outcome.verdict,
                 &staging,
                 outcome.from_cache,
+                outcome.from_global,
+                outcome.from_prescreen,
                 outcome.deny_covered,
             );
             match outcome.verdict.decision {
@@ -789,15 +814,52 @@ fn print_plan(plan: &Plan) {
 }
 
 /// Delega no Cargo com argv estruturado (sem shell), herdando stdio e código
-/// de saída. Preserva sinais do processo-filho via o exit status.
+/// de saída.
+///
+/// Caminho quente overhead-≈0 (ADR-0021): em Unix, **substitui** a imagem do
+/// processo `dx` pelo `cargo` via `execvp` — zero fork+wait, zero processo
+/// intermédio; o código de saída do `cargo` torna-se o do comando. Em não-Unix,
+/// `spawn`+`status` (fallback correcto). Preserva sinais via o exit status.
 fn cargo_passthrough(args: &[String]) -> Result<ExitCode> {
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
-    let status = Command::new(cargo)
-        .args(args)
-        .status()
-        .context("could not invoke cargo")?;
-    match status.code() {
-        Some(code) => Ok(ExitCode::from(code as u8)),
-        None => Ok(ExitCode::from(130)), // terminado por sinal
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        // `exec` só regressa em caso de erro (p.ex. cargo não encontrado).
+        let err = Command::new(&cargo).args(args).exec();
+        Err(anyhow::Error::new(err).context("could not exec cargo"))
+    }
+    #[cfg(not(unix))]
+    {
+        let status = Command::new(cargo)
+            .args(args)
+            .status()
+            .context("could not invoke cargo")?;
+        match status.code() {
+            Some(code) => Ok(ExitCode::from(code as u8)),
+            None => Ok(ExitCode::from(130)), // terminado por sinal
+        }
+    }
+}
+
+/// Emite para stderr **uma linha** de confiança — e só quando o estado NÃO é
+/// `Approved` (ADR-0021). No caminho quente (lockfile já aprovado) é silencioso,
+/// e nunca spawna um scanner. Silenciável com `DX_NO_TRUST_HINT=1`. Nunca
+/// bloqueia o build: o gate real é no `dx add`/`dx audit`.
+fn emit_trust_hint() {
+    if std::env::var_os("DX_NO_TRUST_HINT").is_some() {
+        return;
+    }
+    let Ok((root, _manifest)) = locate_manifest(None) else {
+        return;
+    };
+    match dx_security::fast_trust(&root, &root) {
+        dx_security::TrustState::Approved | dx_security::TrustState::NoLockfile => {}
+        dx_security::TrustState::Stale => eprintln!(
+            "note: dependencies changed since the last approved audit — run `dx audit` to re-establish trust (DX_NO_TRUST_HINT=1 to silence)."
+        ),
+        dx_security::TrustState::Unknown => eprintln!(
+            "note: this project has no trust baseline yet — run `dx audit` (DX_NO_TRUST_HINT=1 to silence)."
+        ),
     }
 }

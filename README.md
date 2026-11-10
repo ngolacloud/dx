@@ -1,11 +1,20 @@
 # DX
 
-**Gestão de dependências Rust com alterações explicáveis, segurança antes da
-execução e recuperação previsível — compatível com Cargo.** Inspirado na
-clareza do [UV](https://docs.astral.sh/uv/), **respeitando os mecanismos nativos
-de Rust**: Cargo e rustc continuam a resolver e compilar. O DX responde a
-«o que estou a introduzir?» (`dx add --plan`), aplica segurança antes do build
-e torna cada alteração recuperável. Ver [ADR-0015](docs/adr/0015-posicionamento-e-plano-de-impacto.md).
+**A camada de confiança do Cargo: supply-chain, segurança e release num só
+comando, com a garantia a acontecer _antes_ da execução.** O DX **não substitui**
+o Cargo — **corre com** ele (Cargo e rustc continuam a resolver e compilar) e
+colapsa a stack fragmentada de cadeia-de-abastecimento
+(`cargo-audit`/`cargo-deny`/`cargo-vet`/SBOM/vendoring) num modelo mental único.
+Responde a «o que estou a introduzir?» (`dx add --plan`), aplica segurança antes
+do build e torna cada alteração recuperável. No caminho quente é **invisível**
+(overhead ≈ 0 vs Cargo — ver [ADR-0021](docs/adr/0021-fast-path-overhead-zero.md)).
+Ver [ADR-0020](docs/adr/0020-camada-de-confianca-nao-substituto.md) e
+[ADR-0015](docs/adr/0015-posicionamento-e-plano-de-impacto.md).
+
+> **Nota de posicionamento.** O [UV](https://docs.astral.sh/uv/) venceu o `pip`
+> por **velocidade** (o Python era lento e fragmentado). O Cargo já é rápido e
+> unificado, por isso o DX **não** compete nesse eixo — compete em **confiança
+> unificada**. O DX nunca promete ser «mais rápido que o Cargo».
 
 - **Executável:** `dx`
 - **Instalação rápida:** `curl -fsSL https://ngolacloud.github.io/dx/install.sh | bash`
@@ -41,7 +50,13 @@ e torna cada alteração recuperável. Ver [ADR-0015](docs/adr/0015-posicionamen
 | **`dx update --plan/--security/--apply`**: corrigir vulnerabilidade transitiva com alteração mínima, validada e reversível | **Implementado + testado** |
 | **`dx environment capture/verify`**: registo reproduzível do ambiente de build (toolchain/tools/segurança/lockfile) + detecção de drift | **Implementado + testado** |
 | **`dx tool install/run/list`**: ferramentas fixadas por projecto, com proveniência (sha256), anti-tamper, sem fallback, `run --isolated` | **Implementado + testado** |
-| **`dx bundle export/verify`**: pacote offline verificável (ambiente + SBOM + vendor + hashes) para on-premises | **Implementado + testado** |
+| **`dx toolchain list/install/pin/use`**: pin de toolchain por projecto via `rust-toolchain.toml` nativo + proveniência (`dx-toolchain.lock`); remediação de drift no `environment verify`; compõe rustup, `pin` nunca descarrega ([ADR-0022](docs/adr/0022-toolchain-pinning.md)) | **Implementado + testado** |
+| **Overhead-≈0 no caminho quente**: `exec` passthrough + `fast_trust` sem spawn; nota de confiança só quando ≠aprovado ([ADR-0021](docs/adr/0021-fast-path-overhead-zero.md)) | **Implementado + testado** |
+| **`dx run <script.rs>`**: scripts de ficheiro único com deps inline (frontmatter `---`, estilo `cargo -Zscript`/PEP 723); **auditados pelo gate antes de executar** ([ADR-0023](docs/adr/0023-run-single-file-script.md)) | **Implementado + testado** |
+| **Cache de decisões global + à prova de adulteração** (`~/.dx/verdicts`, HMAC-SHA256 por chave local); reutilização entre worktrees/CI/equipas com o mesmo lockfile ([ADR-0024](docs/adr/0024-global-decision-cache.md)) | **Implementado + testado** |
+| **Pré-screen por crate (fast-BLOCK)**: bloqueia já um `crate@versão` conhecido como vulnerável, entre projectos diferentes, sem correr o gate; NUNCA acelera um Approved ([ADR-0026](docs/adr/0026-per-crate-fast-block-prescreen.md)) | **Implementado + testado** |
+| **`dx compat`**: contrato de compatibilidade com o Cargo (interfaces + intervalo testado MSRV 1.85…1.96) + matriz CI de toolchains; apanha drift de formato do Cargo ([ADR-0025](docs/adr/0025-cargo-compatibility-contract.md)) | **Implementado + testado** |
+| **`dx bundle export/verify/reproduce`**: pacote offline verificável (ambiente + SBOM + vendor + hashes); `reproduce` prova que as fontes vendored reproduzem byte-a-byte do lockfile ([ADR-0027](docs/adr/0027-bundle-reproducibility.md)) | **Implementado + testado** |
 | Adaptador Seiva: `dx new --template seiva` + `dx add seiva-console-admin` (integração declarativa por âncoras) | **Implementado + testado** |
 | `dx bench` (mock registry; resolução vs gate; cache frio/quente; overhead ≤10% em quente) | **Implementado + testado** |
 | `fetch`/`update`/`release prepare` | **Planeado** — stub honesto (exit 3) |
