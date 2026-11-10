@@ -428,6 +428,7 @@ dependencies = [
  "ngoladx-release",
  "ngoladx-report",
  "ngoladx-sandbox",
+ "ngoladx-script",
  "ngoladx-security",
  "ngoladx-seiva",
  "ngoladx-tool",
@@ -517,6 +518,13 @@ dependencies = [
  "libc",
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "ngoladx-script"
+version = "0.0.1"
+dependencies = [
+ "toml_edit",
 ]
 
 [[package]]

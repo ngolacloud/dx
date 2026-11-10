@@ -16,6 +16,7 @@ mod complete;
 mod envcmd;
 mod plancmd;
 mod releasecmd;
+mod runcmd;
 mod scaffold;
 mod security;
 mod seivacmd;
@@ -173,7 +174,8 @@ enum Commands {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         workload: Vec<String>,
     },
-    /// Run (delegates to `cargo run`).
+    /// Run: `dx run <file.rs>` runs a single-file script through the security
+    /// gate; otherwise delegates to `cargo run`.
     Run {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
@@ -395,6 +397,11 @@ fn run(cmd: Commands) -> Result<ExitCode> {
         Commands::Bench { sizes, reps } => benchcmd::cmd_bench(sizes.as_deref(), reps),
         Commands::Pgo { bin, workload } => buildcmd::cmd_pgo(bin.as_deref(), &workload),
         Commands::Run { args } => {
+            // Script mode: `dx run <file.rs> [args]` runs a single-file script
+            // through the security gate before executing (ADR-0023).
+            if let Some((script, rest)) = runcmd::detect_script(&args) {
+                return runcmd::run_script(script, rest, false);
+            }
             emit_trust_hint();
             let mut a = vec!["run".to_string()];
             if !args.is_empty() {

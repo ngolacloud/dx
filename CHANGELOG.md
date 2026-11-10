@@ -13,6 +13,16 @@ changes, security before execution, predictable recovery — Cargo-compatible.
   ADR-0015 no longer suggest replacing Cargo, and nothing promises DX is "faster
   than Cargo".
 
+### Added — `dx run <script.rs>` ([ADR-0023](docs/adr/0023-run-single-file-script.md))
+- **Single-file scripts with inline deps** (cargo `-Zscript`-style `---`
+  frontmatter), analogous to PEP 723/`uvx`. The DX differentiator: the script's
+  dependency graph passes the **same security gate** as `dx add` BEFORE it runs
+  — `Blocked`/`Pending` refuse to execute. Builds an ephemeral, workspace-
+  isolated package, resolves without compiling, audits, then `cargo run`. New
+  crate `ngoladx-script` (`dx_script`). `dx run` still delegates to `cargo run`
+  for normal projects; script mode triggers only when the first arg is an
+  existing `.rs` file.
+
 ### Added — `dx toolchain` ([ADR-0022](docs/adr/0022-toolchain-pinning.md))
 - **Project toolchain pinning** (`dx toolchain list|install|pin|use`), composing
   rustup. The pin is the native `rust-toolchain.toml` (works without DX); DX adds
