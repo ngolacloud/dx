@@ -4,6 +4,26 @@ All notable changes to DX are documented here. DX follows the positioning in
 [ADR-0015](docs/adr/0015-posicionamento-e-plano-de-impacto.md): explainable
 changes, security before execution, predictable recovery — Cargo-compatible.
 
+## [Unreleased]
+
+### Changed — positioning
+- **DX is the Cargo _trust layer_, not a replacement** ([ADR-0020](docs/adr/0020-camada-de-confianca-nao-substituto.md)).
+  The value axis is unified trust (supply-chain/security/release), never speed:
+  Cargo is already fast and unified, so DX runs _with_ it. README, `--help` and
+  ADR-0015 no longer suggest replacing Cargo, and nothing promises DX is "faster
+  than Cargo".
+
+### Added — overhead-≈0 hot path ([ADR-0021](docs/adr/0021-fast-path-overhead-zero.md))
+- **`exec` passthrough.** On Unix, `dx build`/`run`/`check`/`fmt`/`lint` replace
+  the `dx` process image with `cargo` via `execvp` — zero fork+wait, zero
+  intermediate process. Measured `dx build` ≈ `cargo build` (within noise).
+- **`dx_security::fast_trust`.** A trust lookup that spawns **no** process: reads
+  only `Cargo.lock` + `.dx/security/decision-*.json` to answer
+  `Approved`/`Stale`/`Unknown`/`NoLockfile`. `dx build`/`run`/`check` print a
+  single advisory line only when the state is not `Approved` (silent on the hot
+  path); never blocks the build; silence with `DX_NO_TRUST_HINT=1`. The real
+  gate stays on `dx add`/`dx audit`.
+
 ## [0.0.2] — 2026-11-05 — `ngoladx-cli`
 
 CLI-only release (the `dx_*` libraries stay at `0.0.1`; no library code changed).

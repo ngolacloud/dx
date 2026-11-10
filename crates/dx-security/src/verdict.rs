@@ -150,6 +150,65 @@ pub fn load(root: &Utf8Path, key: &CacheKey) -> Option<Verdict> {
     }
 }
 
+/// Estado de confiança barato, para o caminho quente (ADR-0021).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TrustState {
+    /// Existe um veredicto `approved` para este exacto lockfile. Prosseguir em silêncio.
+    Approved,
+    /// Há veredictos, mas o lockfile mudou (ou o último não foi aprovado).
+    Stale,
+    /// O projecto nunca estabeleceu uma baseline de confiança.
+    Unknown,
+    /// Nada resolvido ainda (sem Cargo.lock).
+    NoLockfile,
+}
+
+/// Consulta de confiança **sem spawnar nenhum processo** (ADR-0021).
+///
+/// Responde «este lockfile já foi aprovado?» lendo apenas o `Cargo.lock` e os
+/// veredictos em `.dx/security/decision-*.json`. **Nunca** corre
+/// `cargo-audit`/`cargo-deny`/`rustc` (construir a `CacheKey` completa exigiria
+/// `cargo audit --version`, um spawn — evitado de propósito).
+///
+/// Casa pelo `lockfile_sha` (a parte que muda quando as dependências mudam). É
+/// um **sinal barato**, não o gate: ignora drift de política/base de advisories
+/// — se estes mudaram, o `dx audit`/`dx add` (scanner real) reavaliam. Nunca
+/// aprova nada; aprovar é sempre do gate real.
+pub fn fast_trust(root: &Utf8Path, manifest_dir: &Utf8Path) -> TrustState {
+    let lockfile = manifest_dir.join("Cargo.lock");
+    let current = match sha256_file(&lockfile) {
+        Ok(sha) => sha,
+        Err(_) => return TrustState::NoLockfile,
+    };
+    let dir = cache_dir(root);
+    let entries = match std::fs::read_dir(dir.as_std_path()) {
+        Ok(e) => e,
+        Err(_) => return TrustState::Unknown,
+    };
+    let mut saw_any = false;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|x| x.to_str()) != Some("json") {
+            continue;
+        }
+        let Ok(data) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        let Ok(verdict) = serde_json::from_str::<Verdict>(&data) else {
+            continue;
+        };
+        saw_any = true;
+        if verdict.decision == Decision::Approved && verdict.key.lockfile_sha == current {
+            return TrustState::Approved;
+        }
+    }
+    if saw_any {
+        TrustState::Stale
+    } else {
+        TrustState::Unknown
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -241,5 +300,72 @@ mod tests {
         let mut k2 = key();
         k2.db_snapshot = "outro".into();
         assert!(load(root, &k2).is_none());
+    }
+
+    /// Escreve um Cargo.lock e devolve o seu sha256 (a parte que `fast_trust`
+    /// casa). O `manifest_dir` é o `root` neste cenário.
+    fn write_lock(root: &Utf8Path, contents: &str) -> String {
+        std::fs::write(root.join("Cargo.lock"), contents).unwrap();
+        sha256_file(&root.join("Cargo.lock")).unwrap()
+    }
+
+    fn approved_verdict_for(lock_sha: &str) -> Verdict {
+        let mut k = key();
+        k.lockfile_sha = lock_sha.to_string();
+        evaluate(vec![], &Policy::default(), valid_db(), k)
+    }
+
+    #[test]
+    fn fast_trust_no_lockfile_is_nolockfile() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = Utf8Path::from_path(tmp.path()).unwrap();
+        assert_eq!(fast_trust(root, root), TrustState::NoLockfile);
+    }
+
+    #[test]
+    fn fast_trust_lockfile_but_no_cache_is_unknown() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = Utf8Path::from_path(tmp.path()).unwrap();
+        write_lock(root, "v1");
+        assert_eq!(fast_trust(root, root), TrustState::Unknown);
+    }
+
+    #[test]
+    fn fast_trust_matching_approved_is_approved() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = Utf8Path::from_path(tmp.path()).unwrap();
+        let sha = write_lock(root, "v1");
+        save(root, &approved_verdict_for(&sha)).unwrap();
+        assert_eq!(fast_trust(root, root), TrustState::Approved);
+    }
+
+    #[test]
+    fn fast_trust_changed_lockfile_is_stale() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = Utf8Path::from_path(tmp.path()).unwrap();
+        let sha = write_lock(root, "v1");
+        save(root, &approved_verdict_for(&sha)).unwrap();
+        // O lockfile muda ⇒ o veredicto aprovado deixa de casar.
+        write_lock(root, "v2-different");
+        assert_eq!(fast_trust(root, root), TrustState::Stale);
+    }
+
+    #[test]
+    fn fast_trust_blocked_verdict_same_lock_is_stale() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = Utf8Path::from_path(tmp.path()).unwrap();
+        let sha = write_lock(root, "v1");
+        // Veredicto existente mas BLOCKED ⇒ não é confiança, é Stale.
+        let mut k = key();
+        k.lockfile_sha = sha;
+        let blocked = evaluate(
+            vec![mkfinding(Category::Vulnerability)],
+            &Policy::default(),
+            valid_db(),
+            k,
+        );
+        assert_eq!(blocked.decision, Decision::Blocked);
+        save(root, &blocked).unwrap();
+        assert_eq!(fast_trust(root, root), TrustState::Stale);
     }
 }

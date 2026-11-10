@@ -22,7 +22,7 @@ pub mod verdict;
 pub use audit::{inverse_dependency_path, Finding};
 pub use db::{default_db_path, DbStatus};
 pub use policy::{Action, Category, Policy};
-pub use verdict::{CacheKey, Decision, Verdict};
+pub use verdict::{fast_trust, CacheKey, Decision, TrustState, Verdict};
 
 use camino::Utf8Path;
 

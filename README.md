@@ -1,11 +1,20 @@
 # DX
 
-**Gestão de dependências Rust com alterações explicáveis, segurança antes da
-execução e recuperação previsível — compatível com Cargo.** Inspirado na
-clareza do [UV](https://docs.astral.sh/uv/), **respeitando os mecanismos nativos
-de Rust**: Cargo e rustc continuam a resolver e compilar. O DX responde a
-«o que estou a introduzir?» (`dx add --plan`), aplica segurança antes do build
-e torna cada alteração recuperável. Ver [ADR-0015](docs/adr/0015-posicionamento-e-plano-de-impacto.md).
+**A camada de confiança do Cargo: supply-chain, segurança e release num só
+comando, com a garantia a acontecer _antes_ da execução.** O DX **não substitui**
+o Cargo — **corre com** ele (Cargo e rustc continuam a resolver e compilar) e
+colapsa a stack fragmentada de cadeia-de-abastecimento
+(`cargo-audit`/`cargo-deny`/`cargo-vet`/SBOM/vendoring) num modelo mental único.
+Responde a «o que estou a introduzir?» (`dx add --plan`), aplica segurança antes
+do build e torna cada alteração recuperável. No caminho quente é **invisível**
+(overhead ≈ 0 vs Cargo — ver [ADR-0021](docs/adr/0021-fast-path-overhead-zero.md)).
+Ver [ADR-0020](docs/adr/0020-camada-de-confianca-nao-substituto.md) e
+[ADR-0015](docs/adr/0015-posicionamento-e-plano-de-impacto.md).
+
+> **Nota de posicionamento.** O [UV](https://docs.astral.sh/uv/) venceu o `pip`
+> por **velocidade** (o Python era lento e fragmentado). O Cargo já é rápido e
+> unificado, por isso o DX **não** compete nesse eixo — compete em **confiança
+> unificada**. O DX nunca promete ser «mais rápido que o Cargo».
 
 - **Executável:** `dx`
 - **Instalação rápida:** `curl -fsSL https://ngolacloud.github.io/dx/install.sh | bash`

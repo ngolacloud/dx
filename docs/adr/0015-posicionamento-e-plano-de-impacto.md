@@ -6,6 +6,11 @@
 
 ## Posicionamento
 
+**Actualizado pelo [ADR-0020](0020-camada-de-confianca-nao-substituto.md):** o
+DX é a _camada de confiança do Cargo_, não um substituto — corre _com_ o Cargo.
+O eixo de valor é confiança unificada (supply-chain/segurança/release), nunca
+velocidade. A frase abaixo mantém-se válida como descrição das garantias.
+
 > **DX — gestão de dependências Rust com alterações explicáveis, segurança
 > antes da execução e recuperação previsível, compatível com Cargo.**
 
