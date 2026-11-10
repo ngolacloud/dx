@@ -56,7 +56,7 @@ Ver [ADR-0020](docs/adr/0020-camada-de-confianca-nao-substituto.md) e
 | **Cache de decisões global + à prova de adulteração** (`~/.dx/verdicts`, HMAC-SHA256 por chave local); reutilização entre worktrees/CI/equipas com o mesmo lockfile ([ADR-0024](docs/adr/0024-global-decision-cache.md)) | **Implementado + testado** |
 | **Pré-screen por crate (fast-BLOCK)**: bloqueia já um `crate@versão` conhecido como vulnerável, entre projectos diferentes, sem correr o gate; NUNCA acelera um Approved ([ADR-0026](docs/adr/0026-per-crate-fast-block-prescreen.md)) | **Implementado + testado** |
 | **`dx compat`**: contrato de compatibilidade com o Cargo (interfaces + intervalo testado MSRV 1.82…1.96) + matriz CI de toolchains; apanha drift de formato do Cargo ([ADR-0025](docs/adr/0025-cargo-compatibility-contract.md)) | **Implementado + testado** |
-| **`dx bundle export/verify`**: pacote offline verificável (ambiente + SBOM + vendor + hashes) para on-premises | **Implementado + testado** |
+| **`dx bundle export/verify/reproduce`**: pacote offline verificável (ambiente + SBOM + vendor + hashes); `reproduce` prova que as fontes vendored reproduzem byte-a-byte do lockfile ([ADR-0027](docs/adr/0027-bundle-reproducibility.md)) | **Implementado + testado** |
 | Adaptador Seiva: `dx new --template seiva` + `dx add seiva-console-admin` (integração declarativa por âncoras) | **Implementado + testado** |
 | `dx bench` (mock registry; resolução vs gate; cache frio/quente; overhead ≤10% em quente) | **Implementado + testado** |
 | `fetch`/`update`/`release prepare` | **Planeado** — stub honesto (exit 3) |

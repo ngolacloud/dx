@@ -13,6 +13,14 @@ changes, security before execution, predictable recovery — Cargo-compatible.
   ADR-0015 no longer suggest replacing Cargo, and nothing promises DX is "faster
   than Cargo".
 
+### Added — bundle reproducibility ([ADR-0027](docs/adr/0027-bundle-reproducibility.md))
+- **`dx bundle reproduce <dir>`** re-vendors from the bundle's own `Cargo.lock`
+  into a scratch dir and proves the `vendor/` aggregate hash matches the one
+  recorded in `bundle.json` — i.e. the dependency sources reproduce byte-for-byte
+  for a given lockfile. Honest scope: the vendored sources reproduce; the
+  timestamp and host environment record are excluded (not the final binary). CI
+  gains a best-effort reproducibility job.
+
 ### Added — per-crate fast-BLOCK pre-screen ([ADR-0026](docs/adr/0026-per-crate-fast-block-prescreen.md))
 - **Cross-project network effect, BLOCK-only.** `dx_security::prescreen` caches,
   per advisory-db snapshot, the `crate@version`s known to carry a blocking
