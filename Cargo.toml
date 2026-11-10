@@ -15,6 +15,7 @@ members = [
     "crates/dx-tool",
     "crates/dx-toolchain",
     "crates/dx-script",
+    "crates/dx-compat",
     "crates/dx-cli",
 ]
 
@@ -45,6 +46,7 @@ dx-env = { package = "ngoladx-env", path = "crates/dx-env", version = "0.0.1" }
 dx-tool = { package = "ngoladx-tool", path = "crates/dx-tool", version = "0.0.1" }
 dx-toolchain = { package = "ngoladx-toolchain", path = "crates/dx-toolchain", version = "0.0.1" }
 dx-script = { package = "ngoladx-script", path = "crates/dx-script", version = "0.0.1" }
+dx-compat = { package = "ngoladx-compat", path = "crates/dx-compat", version = "0.0.1" }
 sha2 = "0.10"
 
 anyhow = "1"

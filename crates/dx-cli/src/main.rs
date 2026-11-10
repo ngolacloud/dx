@@ -12,6 +12,7 @@
 mod benchcmd;
 mod buildcmd;
 mod bundlecmd;
+mod compatcmd;
 mod complete;
 mod envcmd;
 mod plancmd;
@@ -214,6 +215,8 @@ enum Commands {
     Audit,
     /// Diagnose the environment.
     Doctor,
+    /// Probe the host Cargo against DX's compatibility contract.
+    Compat,
     /// Update dependencies: explain, security-fix, apply (with recovery).
     Update {
         /// Restrict the update to one package (minimal change).
@@ -452,6 +455,7 @@ fn run(cmd: Commands) -> Result<ExitCode> {
             security::cmd_audit(&root)
         }
         Commands::Doctor => security::cmd_doctor(),
+        Commands::Compat => compatcmd::run(),
         Commands::Update {
             name,
             plan,

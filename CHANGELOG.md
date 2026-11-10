@@ -13,6 +13,17 @@ changes, security before execution, predictable recovery — Cargo-compatible.
   ADR-0015 no longer suggest replacing Cargo, and nothing promises DX is "faster
   than Cargo".
 
+### Added — Cargo compatibility contract ([ADR-0025](docs/adr/0025-cargo-compatibility-contract.md))
+- **`dx compat`** probes the host Cargo against the interfaces DX depends on
+  (`cargo metadata --format-version 1`, `cargo tree`, `generate-lockfile`,
+  `update`, `vendor`, `rustc -vV`) and classifies the version against the tested
+  range (MSRV 1.82 … 1.96); exits non-zero if a required interface is broken. A
+  summary line is added to `dx doctor`. New crate `ngoladx-compat` (`dx_compat`)
+  pins the contract. CI gains a toolchain matrix (`compat.yml`:
+  1.82/stable/beta/nightly) that runs the suite + `dx compat`, catching Cargo
+  format drift. Reproducibility and the discovery-name question are explicitly
+  deferred (see ADR-0025).
+
 ### Added — global, tamper-evident decision cache ([ADR-0024](docs/adr/0024-global-decision-cache.md))
 - **Shared verdict cache** at `~/.dx/verdicts/` (`DX_VERDICT_DIR`), keyed by the
   same `CacheKey`. `run_gate` now checks local → global → compute, publishing to

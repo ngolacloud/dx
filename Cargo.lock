@@ -421,6 +421,7 @@ dependencies = [
  "clap_complete",
  "ngoladx-bench",
  "ngoladx-build",
+ "ngoladx-compat",
  "ngoladx-core",
  "ngoladx-env",
  "ngoladx-integrity",
@@ -439,6 +440,10 @@ dependencies = [
  "tempfile",
  "toml",
 ]
+
+[[package]]
+name = "ngoladx-compat"
+version = "0.0.1"
 
 [[package]]
 name = "ngoladx-core"

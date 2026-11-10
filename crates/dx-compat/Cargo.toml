@@ -1,0 +1,12 @@
+[package]
+name = "ngoladx-compat"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "DX — Cargo compatibility contract: the cargo interfaces DX depends on, the tested version range, and host-version classification."
+
+[lib]
+name = "dx_compat"

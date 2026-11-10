@@ -128,6 +128,7 @@ pub fn cmd_doctor() -> Result<ExitCode> {
     eprintln!("== dx doctor ==");
     tool_version("rustc", &["--version"]);
     tool_version("cargo", &["--version"]);
+    eprintln!("{}", crate::compatcmd::doctor_line());
     let scanner = audit::scanner_version();
     eprintln!("cargo-audit: {scanner}");
     eprintln!(
