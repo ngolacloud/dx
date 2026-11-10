@@ -53,6 +53,7 @@ Ver [ADR-0020](docs/adr/0020-camada-de-confianca-nao-substituto.md) e
 | **`dx toolchain list/install/pin/use`**: pin de toolchain por projecto via `rust-toolchain.toml` nativo + proveniência (`dx-toolchain.lock`); remediação de drift no `environment verify`; compõe rustup, `pin` nunca descarrega ([ADR-0022](docs/adr/0022-toolchain-pinning.md)) | **Implementado + testado** |
 | **Overhead-≈0 no caminho quente**: `exec` passthrough + `fast_trust` sem spawn; nota de confiança só quando ≠aprovado ([ADR-0021](docs/adr/0021-fast-path-overhead-zero.md)) | **Implementado + testado** |
 | **`dx run <script.rs>`**: scripts de ficheiro único com deps inline (frontmatter `---`, estilo `cargo -Zscript`/PEP 723); **auditados pelo gate antes de executar** ([ADR-0023](docs/adr/0023-run-single-file-script.md)) | **Implementado + testado** |
+| **Cache de decisões global + à prova de adulteração** (`~/.dx/verdicts`, HMAC-SHA256 por chave local); reutilização entre worktrees/CI/equipas com o mesmo lockfile ([ADR-0024](docs/adr/0024-global-decision-cache.md)) | **Implementado + testado** |
 | **`dx bundle export/verify`**: pacote offline verificável (ambiente + SBOM + vendor + hashes) para on-premises | **Implementado + testado** |
 | Adaptador Seiva: `dx new --template seiva` + `dx add seiva-console-admin` (integração declarativa por âncoras) | **Implementado + testado** |
 | `dx bench` (mock registry; resolução vs gate; cache frio/quente; overhead ≤10% em quente) | **Implementado + testado** |

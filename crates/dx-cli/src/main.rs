@@ -691,6 +691,7 @@ fn cmd_add(a: AddArgs) -> Result<ExitCode> {
                 &outcome.verdict,
                 &staging,
                 outcome.from_cache,
+                outcome.from_global,
                 outcome.deny_covered,
             );
             match outcome.verdict.decision {

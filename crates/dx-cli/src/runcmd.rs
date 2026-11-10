@@ -74,6 +74,7 @@ pub fn run_script(path: &str, script_args: &[String], offline: bool) -> Result<E
         &outcome.verdict,
         &root,
         outcome.from_cache,
+        outcome.from_global,
         outcome.deny_covered,
     );
 

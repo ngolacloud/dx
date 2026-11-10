@@ -16,6 +16,7 @@
 pub mod audit;
 pub mod db;
 pub mod deny;
+pub mod global;
 pub mod policy;
 pub mod verdict;
 
@@ -39,6 +40,9 @@ pub enum GateError {
 pub struct GateOutcome {
     pub verdict: Verdict,
     pub from_cache: bool,
+    /// `true` se o veredicto veio da **cache global** (`~/.dx/verdicts`),
+    /// partilhada entre worktrees/CI/equipas (ADR-0024). Implica `from_cache`.
+    pub from_global: bool,
     /// `true` se o `cargo-deny` correu (licenças/origens/bans cobertos).
     /// `false` ⇒ essas dimensões ficam "sem cobertura" (honestidade, não falha).
     pub deny_covered: bool,
@@ -76,10 +80,21 @@ pub fn run_gate(
     };
 
     // Reutilizar veredicto só com chave exacta (aviso novo ⇒ snapshot muda ⇒ miss).
+    // Ordem: cache local (mais rápida) → cache global (partilhada, assinada) → calcular.
     if let Some(cached) = verdict::load(root, &key) {
         return Ok(GateOutcome {
             verdict: cached,
             from_cache: true,
+            from_global: false,
+            deny_covered,
+        });
+    }
+    if let Some(cached) = global::load_global(&key) {
+        let _ = verdict::save(root, &cached); // aquecer a cache local
+        return Ok(GateOutcome {
+            verdict: cached,
+            from_cache: true,
+            from_global: true,
             deny_covered,
         });
     }
@@ -93,9 +108,11 @@ pub fn run_gate(
     }
     let v = verdict::evaluate(findings, policy, db_status, key);
     verdict::save(root, &v)?;
+    let _ = global::save_global(&v); // publicar na cache global (best-effort)
     Ok(GateOutcome {
         verdict: v,
         from_cache: false,
+        from_global: false,
         deny_covered,
     })
 }

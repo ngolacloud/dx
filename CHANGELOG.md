@@ -13,6 +13,16 @@ changes, security before execution, predictable recovery — Cargo-compatible.
   ADR-0015 no longer suggest replacing Cargo, and nothing promises DX is "faster
   than Cargo".
 
+### Added — global, tamper-evident decision cache ([ADR-0024](docs/adr/0024-global-decision-cache.md))
+- **Shared verdict cache** at `~/.dx/verdicts/` (`DX_VERDICT_DIR`), keyed by the
+  same `CacheKey`. `run_gate` now checks local → global → compute, publishing to
+  both; a global hit also warms the local cache and reports "reused from GLOBAL
+  cache". Worktrees/CI/teammates with the **identical** `Cargo.lock` skip
+  re-running cargo-audit/cargo-deny (honest scope: reuse needs the same
+  lockfile). Each entry carries an HMAC-SHA256 over `<key.digest>|<decision>`,
+  signed by a machine-local key (`~/.dx/verdict.key`, 32 bytes, mode 0600);
+  wrong key / tampered content / flipped decision → cache miss (fail-closed).
+
 ### Added — `dx run <script.rs>` ([ADR-0023](docs/adr/0023-run-single-file-script.md))
 - **Single-file scripts with inline deps** (cargo `-Zscript`-style `---`
   frontmatter), analogous to PEP 723/`uvx`. The DX differentiator: the script's

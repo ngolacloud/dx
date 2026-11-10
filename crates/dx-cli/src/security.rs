@@ -29,6 +29,7 @@ pub fn cmd_audit(root: &Utf8Path) -> Result<ExitCode> {
         &outcome.verdict,
         root,
         outcome.from_cache,
+        outcome.from_global,
         outcome.deny_covered,
     );
     Ok(ExitCode::from(outcome.verdict.decision.exit_code()))
@@ -37,7 +38,13 @@ pub fn cmd_audit(root: &Utf8Path) -> Result<ExitCode> {
 /// Imprime um veredicto de forma legível. `tree_dir` é onde correr
 /// `cargo tree -i` para o caminho de dependências (o directório que tem o
 /// Cargo.lock avaliado — projecto real ou staging).
-pub fn report_verdict(v: &Verdict, tree_dir: &Utf8Path, from_cache: bool, deny_covered: bool) {
+pub fn report_verdict(
+    v: &Verdict,
+    tree_dir: &Utf8Path,
+    from_cache: bool,
+    from_global: bool,
+    deny_covered: bool,
+) {
     eprintln!("== DX security gate ==");
     eprintln!(
         "Scanners: cargo-audit (advisories) + cargo-deny {}",
@@ -57,7 +64,10 @@ pub fn report_verdict(v: &Verdict, tree_dir: &Utf8Path, from_cache: bool, deny_c
         v.db_status.detail
     );
     if from_cache {
-        eprintln!("(verdict reused from cache — valid key; no re-download)");
+        eprintln!(
+            "(verdict reused from {} cache — valid key; no re-download)",
+            if from_global { "GLOBAL" } else { "local" }
+        );
     }
 
     if v.findings.is_empty() {
