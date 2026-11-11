@@ -279,6 +279,16 @@ pub fn cmd_build_isolated(release: bool) -> Result<ExitCode> {
         "  filesystem isolated: {} — {}",
         e.filesystem_isolated, e.filesystem_note
     );
+    eprintln!(
+        "  wall-clock deadline: {}",
+        e.wall_clock_timeout.as_deref().unwrap_or("none")
+    );
+    if outcome.timed_out {
+        eprintln!(
+            "ERROR: the isolated build exceeded its wall-clock deadline and its process group was killed (E-1)."
+        );
+        return Ok(ExitCode::from(124)); // 124 = timeout, convention from coreutils `timeout`
+    }
     Ok(ExitCode::from(outcome.code.unwrap_or(1) as u8))
 }
 
