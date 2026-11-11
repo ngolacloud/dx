@@ -123,6 +123,46 @@ mod tests {
     }
 
     #[test]
+    fn apply_transaction_is_durable_for_a_non_manifest_file() {
+        // C-1: `dx tool install` / `toolchain pin` / `environment capture` deixaram
+        // de usar `fs::write` nu e passam por este primitivo. Prova que ele dá a
+        // MESMA garantia (lock + journal + rename atómico, sem journal pendente após
+        // o commit) a um ficheiro arbitrário, não só ao Cargo.toml.
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = Utf8Path::from_path(tmp.path()).unwrap();
+        let target = dir.join("rust-toolchain.toml");
+
+        apply_transaction(
+            dir,
+            &[FileWrite {
+                path: target.clone(),
+                new_contents: "[toolchain]\nchannel = \"1.90.0\"\n".to_string(),
+            }],
+        )
+        .unwrap();
+
+        assert_eq!(
+            std::fs::read_to_string(&target).unwrap(),
+            "[toolchain]\nchannel = \"1.90.0\"\n"
+        );
+        // Commit concluído ⇒ nenhum journal pendente; recover é no-op.
+        assert!(!dir.join(".dx/journal.json").exists());
+        assert!(!recover(dir).unwrap());
+
+        // Uma segunda escrita (upsert) é igualmente atómica e deixa o ficheiro íntegro.
+        apply_transaction(
+            dir,
+            &[FileWrite {
+                path: target.clone(),
+                new_contents: "[toolchain]\nchannel = \"1.91.0\"\n".to_string(),
+            }],
+        )
+        .unwrap();
+        assert!(std::fs::read_to_string(&target).unwrap().contains("1.91.0"));
+        assert!(!dir.join(".dx/journal.json").exists());
+    }
+
+    #[test]
     fn rename_roundtrips() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = Utf8Path::from_path(tmp.path()).unwrap();

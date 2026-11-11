@@ -86,9 +86,13 @@ pub fn cmd_install(
             source,
         };
         dx_tool::upsert(&mut specs, spec.clone());
-        std::fs::write(
-            manifest_path(&root).as_std_path(),
-            dx_tool::render_manifest(&specs),
+        // Durável: lock + journal + rename atómico (ADR-0004), não `fs::write` nu (C-1).
+        dx_manifest::apply_transaction(
+            &root,
+            &[dx_manifest::FileWrite {
+                path: manifest_path(&root),
+                new_contents: dx_tool::render_manifest(&specs),
+            }],
         )
         .context("write dx-tools.toml")?;
         vec![spec]
@@ -154,8 +158,15 @@ pub fn cmd_install(
         eprintln!("  sha256:    {sha}");
     }
 
-    std::fs::write(lock_path(&root).as_std_path(), dx_tool::render_lock(&lock))
-        .context("write dx-tools.lock")?;
+    // Durável: lock + journal + rename atómico (ADR-0004), não `fs::write` nu (C-1).
+    dx_manifest::apply_transaction(
+        &root,
+        &[dx_manifest::FileWrite {
+            path: lock_path(&root),
+            new_contents: dx_tool::render_lock(&lock),
+        }],
+    )
+    .context("write dx-tools.lock")?;
     eprintln!(
         "\n\u{2713} Pinned in dx-tools.toml; provenance in {}.",
         lock_path(&root)
