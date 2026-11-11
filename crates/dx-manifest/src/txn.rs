@@ -84,7 +84,26 @@ pub fn apply_transaction(root: &Utf8Path, writes: &[FileWrite]) -> io::Result<()
         return Ok(());
     }
     fs::create_dir_all(dx_dir(root))?;
-    let _lock = WorkspaceLock::acquire(root)?;
+    let lock = WorkspaceLock::acquire(root)?;
+    apply_transaction_locked(root, writes, &lock)
+}
+
+/// Como [`apply_transaction`], mas o chamador JÁ detém o lock e passa-o como
+/// testemunha. É o que torna possível um **read-modify-write atómico** (B-1):
+/// adquirir o lock, LER o estado em disco, modificá-lo e ESCREVER tudo sob o
+/// mesmo lock — sem o re-adquirir (o flock não é reentrante no mesmo processo,
+/// uma 2ª aquisição bloquearia). Um `dx add` concorrente deixa de perder uma
+/// dependência: cada processo lê o estado actual sob o lock e re-aplica a sua
+/// mudança.
+pub fn apply_transaction_locked(
+    root: &Utf8Path,
+    writes: &[FileWrite],
+    _lock: &WorkspaceLock,
+) -> io::Result<()> {
+    if writes.is_empty() {
+        return Ok(());
+    }
+    fs::create_dir_all(dx_dir(root))?;
 
     // Recuperar qualquer journal pendente antes de começar um novo.
     recover_locked(root)?;
@@ -125,6 +144,13 @@ pub fn recover(root: &Utf8Path) -> io::Result<bool> {
     }
     fs::create_dir_all(dx_dir(root))?;
     let _lock = WorkspaceLock::acquire(root)?;
+    recover_locked(root)
+}
+
+/// Como [`recover`], mas o chamador JÁ detém o lock (testemunha). Para um RMW que
+/// quer recuperar um journal pendente ANTES de ler o estado em disco, sob o mesmo
+/// lock que a escrita subsequente (B-1), sem re-adquirir.
+pub fn recover_with_lock(root: &Utf8Path, _lock: &WorkspaceLock) -> io::Result<bool> {
     recover_locked(root)
 }
 
