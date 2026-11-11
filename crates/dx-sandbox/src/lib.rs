@@ -23,6 +23,7 @@
 use camino::Utf8PathBuf;
 use serde::Serialize;
 use std::process::Command;
+use std::time::Duration;
 
 /// Variáveis de ambiente mínimas que deixamos passar para um build isolado.
 const ENV_ALLOWLIST: &[&str] = &[
@@ -106,6 +107,11 @@ pub struct SandboxSpec {
     pub extra_env_allow: Vec<String>,
     pub limits: ResourceLimits,
     pub cwd: Option<Utf8PathBuf>,
+    /// Deadline de **relógio de parede** (wall-clock). `RLIMIT_CPU` limita CPU, não
+    /// I/O — um `build.rs` que bloqueia/dorme em I/O penduraria para sempre (E-1).
+    /// Ao exceder o deadline, o GRUPO de processos do filho é morto e colhido.
+    /// `None` = sem deadline (não recomendado). Default: 1h (generoso mas finito).
+    pub wall_clock_timeout: Option<Duration>,
 }
 
 impl Default for SandboxSpec {
@@ -116,6 +122,7 @@ impl Default for SandboxSpec {
             extra_env_allow: Vec::new(),
             limits: ResourceLimits::default(),
             cwd: None,
+            wall_clock_timeout: Some(Duration::from_secs(3600)),
         }
     }
 }
@@ -130,11 +137,18 @@ pub struct EnforcedReport {
     pub rlimits_applied: Vec<String>,
     pub filesystem_isolated: bool,
     pub filesystem_note: String,
+    /// Deadline wall-clock imposto nesta execução (e.g. `"3600s"`), ou `None` se
+    /// não houver (E-1). O filho corre no seu próprio grupo de processos, morto e
+    /// colhido ao exceder o deadline ou ao receber SIGINT/SIGTERM (E-2).
+    pub wall_clock_timeout: Option<String>,
 }
 
 #[derive(Debug)]
 pub struct SandboxOutcome {
     pub code: Option<i32>,
+    /// `true` se a execução foi morta por exceder o deadline wall-clock (E-1). O
+    /// `code` fica `None` (morto por sinal, não saída normal).
+    pub timed_out: bool,
     pub enforced: EnforcedReport,
 }
 
@@ -199,10 +213,15 @@ pub fn run(
         "network allowed (isolation not requested)".to_string()
     };
 
-    let status = cmd.status()?;
+    // Supervisão do ciclo de vida (E-1/E-2): o filho corre no seu próprio grupo de
+    // processos, com um deadline wall-clock; ao exceder, o GRUPO inteiro (o filho e
+    // os seus descendentes — build.rs e filhos) é morto e colhido, não só o filho
+    // directo. Um SIGINT/SIGTERM ao `dx` também mata o grupo (senão ficaria órfão).
+    let (code, timed_out) = supervise(cmd, spec.wall_clock_timeout)?;
 
     Ok(SandboxOutcome {
-        code: status.code(),
+        code,
+        timed_out,
         enforced: EnforcedReport {
             network_isolated: net_enforced,
             network_mechanism,
@@ -211,8 +230,129 @@ pub fn run(
             rlimits_applied,
             filesystem_isolated: false,
             filesystem_note: "NOT enforced in this version (no mount namespace/minimal FS)".into(),
+            wall_clock_timeout: spec.wall_clock_timeout.map(|t| format!("{}s", t.as_secs())),
         },
     })
+}
+
+/// Executa `cmd` com um deadline wall-clock e reaping do grupo de processos (E-1/E-2).
+///
+/// Devolve `(código de saída, timed_out)`. No caminho não-Unix não há grupos de
+/// processos nem sinais POSIX, pelo que corre bloqueante (o deadline é ignorado,
+/// reportado honestamente por [`Capabilities`]).
+#[cfg(unix)]
+fn supervise(
+    mut cmd: Command,
+    timeout: Option<Duration>,
+) -> Result<(Option<i32>, bool), SandboxError> {
+    use std::os::unix::process::CommandExt;
+    use std::sync::atomic::Ordering;
+    use std::time::Instant;
+
+    // O filho LIDERA o seu próprio grupo de processos (pgid == pid do filho), para
+    // que um kill por deadline/sinal colha a ÁRVORE inteira, não só o filho directo.
+    cmd.process_group(0);
+    let mut child = cmd.spawn()?;
+    #[allow(clippy::cast_possible_wrap)]
+    let pgid = child.id() as i32;
+
+    // Reaping sob SIGINT/SIGTERM ao `dx`: num grupo próprio, o filho seria reparentado
+    // para o init (órfão) quando o `dx` morresse. O handler mata o grupo primeiro (E-2).
+    install_signal_reaper();
+    SUPERVISED_PGID.store(pgid, Ordering::SeqCst);
+    // Mata o grupo também em qualquer retorno antecipado/panic (guarda de Drop).
+    let _guard = GroupGuard { pgid };
+
+    let deadline = timeout.map(|t| Instant::now() + t);
+    let mut timed_out = false;
+    let code = loop {
+        if let Some(status) = child.try_wait()? {
+            break status.code();
+        }
+        if let Some(d) = deadline {
+            if Instant::now() >= d {
+                kill_group(pgid);
+                let status = child.wait()?;
+                timed_out = true;
+                break status.code();
+            }
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    };
+
+    SUPERVISED_PGID.store(0, Ordering::SeqCst);
+    Ok((code, timed_out))
+}
+
+#[cfg(not(unix))]
+fn supervise(
+    mut cmd: Command,
+    _timeout: Option<Duration>,
+) -> Result<(Option<i32>, bool), SandboxError> {
+    let status = cmd.status()?;
+    Ok((status.code(), false))
+}
+
+/// O grupo de processos (pgid) do filho supervisionado em curso, `0` quando nenhum.
+/// Lido pelo handler de sinal (async-signal-safe: só um load atómico).
+#[cfg(unix)]
+static SUPERVISED_PGID: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(0);
+
+/// Mata o grupo de processos `pgid` com `SIGKILL`. Alvo é SEMPRE o grupo do filho
+/// (pgid == pid do filho, via `process_group(0)`), nunca o do `dx`.
+#[cfg(unix)]
+fn kill_group(pgid: i32) {
+    // SAFETY: `killpg` é async-signal-safe e só atinge o grupo do filho.
+    unsafe {
+        libc::killpg(pgid, libc::SIGKILL);
+    }
+}
+
+/// Instala, uma vez, um handler de SIGINT/SIGTERM que mata o grupo do filho
+/// supervisionado antes de o `dx` sair — sem isto, um grupo próprio ficaria órfão.
+#[cfg(unix)]
+fn install_signal_reaper() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        // SAFETY: regista um handler async-signal-safe (ver `reaper`).
+        unsafe {
+            let handler = reaper as *const () as libc::sighandler_t;
+            libc::signal(libc::SIGTERM, handler);
+            libc::signal(libc::SIGINT, handler);
+        }
+    });
+}
+
+/// Handler de sinal: mata o grupo supervisionado (se houver) e sai. Usa apenas
+/// operações async-signal-safe (um load atómico, `killpg`, `_exit`).
+#[cfg(unix)]
+extern "C" fn reaper(signum: libc::c_int) {
+    let pgid = SUPERVISED_PGID.load(std::sync::atomic::Ordering::SeqCst);
+    if pgid != 0 {
+        unsafe {
+            libc::killpg(pgid, libc::SIGKILL);
+        }
+    }
+    // Sai com o código convencional 128+sinal, sem cleanup de alto nível (que não
+    // seria async-signal-safe) — o grupo já foi colhido acima.
+    unsafe {
+        libc::_exit(128 + signum);
+    }
+}
+
+/// Guarda de Drop que mata o grupo do filho — garante reaping em qualquer retorno
+/// antecipado ou panic de [`supervise`] (um grupo já vazio ⇒ `killpg` ESRCH, inócuo).
+#[cfg(unix)]
+struct GroupGuard {
+    pgid: i32,
+}
+
+#[cfg(unix)]
+impl Drop for GroupGuard {
+    fn drop(&mut self) {
+        kill_group(self.pgid);
+        SUPERVISED_PGID.store(0, std::sync::atomic::Ordering::SeqCst);
+    }
 }
 
 #[cfg(unix)]
