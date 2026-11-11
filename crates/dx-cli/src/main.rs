@@ -34,7 +34,7 @@ use anyhow::{bail, Context, Result};
 use camino::{Utf8Path, Utf8PathBuf};
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use dx_core::{Change, DepKind, DepSpec, Plan, Source};
-use dx_manifest::{apply_transaction, commit_manifest, recover, FileWrite, Manifest};
+use dx_manifest::{apply_transaction, recover, FileWrite, Manifest};
 use dx_security::{run_gate, Decision, Policy};
 
 #[derive(Parser)]
@@ -676,8 +676,17 @@ fn cmd_add(a: AddArgs) -> Result<ExitCode> {
     manifest.upsert(&spec);
     let mutated = manifest.to_toml_string();
 
-    let commit = |m: &Manifest| -> Result<()> {
-        commit_manifest(&root, m).context("write Cargo.toml")?;
+    // RMW ATÓMICO (B-1): o `manifest` acima foi carregado FORA do lock e o gate de
+    // segurança pode ter corrido minutos; comitá-lo cego perderia a dependência de
+    // um `dx add` concorrente que aterrou entretanto. Em vez disso, sob um ÚNICO
+    // lock, re-lê-se o estado actual em disco e re-aplica-se só a NOSSA `spec`.
+    let commit = || -> Result<()> {
+        let lock =
+            dx_manifest::WorkspaceLock::acquire(&root).context("lock workspace for the write")?;
+        dx_manifest::recover_with_lock(&root, &lock).ok();
+        let mut fresh = Manifest::load(&manifest_path)?;
+        fresh.upsert(&spec);
+        dx_manifest::commit_manifest_locked(&root, &fresh, &lock).context("write Cargo.toml")?;
         eprintln!(
             "\u{2713} `{}` configured in {manifest_path}",
             spec.table_entry_key()
@@ -701,7 +710,7 @@ fn cmd_add(a: AddArgs) -> Result<ExitCode> {
             );
             match outcome.verdict.decision {
                 Decision::Approved => {
-                    commit(&manifest)?;
+                    commit()?;
                     if let Some(spec) = dx_seiva::known(&name) {
                         return seivacmd::integrate(&root, &manifest_path, &spec, true);
                     }
@@ -724,7 +733,7 @@ fn cmd_add(a: AddArgs) -> Result<ExitCode> {
         stage::Staging::NotApplicable { reason } => {
             // Honesto: não finjo gate. A edição de texto aterra (não compila
             // nada), mas o estado é NÃO-VERIFICADO e é preciso `dx audit`.
-            commit(&manifest)?;
+            commit()?;
             eprintln!(
                 "\u{26a0} pre-landing gate NOT applied ({reason}). The dependency was written, but the graph was not evaluated in staging. Run `dx audit` before building."
             );
@@ -757,7 +766,7 @@ fn cmd_remove(
     };
     let (root, manifest_path) = locate_manifest(manifest_path.as_deref())?;
     recover(&root).ok();
-    let mut manifest = Manifest::load(&manifest_path)?;
+    let manifest = Manifest::load(&manifest_path)?;
 
     let mut plan = Plan::new();
     if let Some(c) = manifest.plan_remove(name, kind, None) {
@@ -771,8 +780,15 @@ fn cmd_remove(
     if plan.is_noop() {
         return Ok(ExitCode::SUCCESS); // já não existe
     }
-    manifest.remove(name, kind, None);
-    commit_manifest(&root, &manifest).context("escrever Cargo.toml")?;
+    // RMW ATÓMICO (B-1): re-ler o estado actual sob o lock e re-aplicar só a NOSSA
+    // remoção, para não sobrepor com uma escrita cega a mudança de um `dx add`/
+    // `remove` concorrente carregado na mesma janela.
+    let lock =
+        dx_manifest::WorkspaceLock::acquire(&root).context("lock workspace for the write")?;
+    dx_manifest::recover_with_lock(&root, &lock).ok();
+    let mut fresh = Manifest::load(&manifest_path)?;
+    fresh.remove(name, kind, None);
+    dx_manifest::commit_manifest_locked(&root, &fresh, &lock).context("escrever Cargo.toml")?;
     eprintln!("\u{2713} `{name}` removed from {manifest_path}");
     Ok(ExitCode::SUCCESS)
 }

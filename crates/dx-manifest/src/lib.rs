@@ -6,7 +6,7 @@ pub mod txn;
 
 pub use lock::WorkspaceLock;
 pub use manifest::{Manifest, ManifestError};
-pub use txn::{apply_transaction, recover, FileWrite};
+pub use txn::{apply_transaction, apply_transaction_locked, recover, recover_with_lock, FileWrite};
 
 use camino::Utf8Path;
 
@@ -18,6 +18,22 @@ pub fn commit_manifest(root: &Utf8Path, manifest: &Manifest) -> std::io::Result<
         new_contents: manifest.to_toml_string(),
     }];
     apply_transaction(root, &writes)
+}
+
+/// Como [`commit_manifest`], mas o chamador JÁ detém o [`WorkspaceLock`] — para um
+/// read-modify-write atómico do manifesto sob um único lock (B-1): adquirir o
+/// lock, ler o estado actual, re-aplicar a mudança e comitar, tudo sem janela em
+/// que um `dx add` concorrente possa perder a dependência do outro.
+pub fn commit_manifest_locked(
+    root: &Utf8Path,
+    manifest: &Manifest,
+    lock: &WorkspaceLock,
+) -> std::io::Result<()> {
+    let writes = vec![FileWrite {
+        path: manifest.path.clone(),
+        new_contents: manifest.to_toml_string(),
+    }];
+    apply_transaction_locked(root, &writes, lock)
 }
 
 #[cfg(test)]
@@ -101,6 +117,51 @@ mod tests {
         );
         assert!(out.contains("anyhow = \"1\""));
         assert!(out.contains("serde = \"1\""));
+    }
+
+    #[test]
+    fn rmw_under_a_held_lock_preserves_a_concurrent_change() {
+        // B-1: um `dx add` carrega o manifesto, corre o gate (minutos) e comita. Se
+        // comitasse o snapshot carregado cego, perderia a dependência de um `dx add`
+        // CONCORRENTE que aterrou entretanto. A correcção: sob um único lock, RE-LER
+        // o estado actual e re-aplicar só a NOSSA mudança.
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = Utf8Path::from_path(tmp.path()).unwrap();
+        let p = write_tmp(
+            dir,
+            "[package]\nname=\"demo\"\nversion=\"0.1.0\"\n[dependencies]\n",
+        );
+
+        // "Processo 1" carrega o manifesto cedo (sem dependências).
+        let stale = Manifest::load(&p).unwrap();
+
+        // "Processo 2" junta `serde` concorrentemente e comita (sob o seu lock).
+        {
+            let mut m2 = Manifest::load(&p).unwrap();
+            m2.upsert(&DepSpec::registry("serde", Some("1".into())));
+            commit_manifest(dir, &m2).unwrap();
+        }
+
+        // "Processo 1" comita a SUA adição (`anyhow`) pela via B-1: lock, re-ler,
+        // re-aplicar, comitar sob o mesmo lock. O `stale` NÃO é escrito cego.
+        {
+            let lock = WorkspaceLock::acquire(dir).unwrap();
+            recover_with_lock(dir, &lock).unwrap();
+            let mut fresh = Manifest::load(&p).unwrap(); // vê o `serde` agora
+            fresh.upsert(&DepSpec::registry("anyhow", Some("1".into())));
+            commit_manifest_locked(dir, &fresh, &lock).unwrap();
+        }
+        drop(stale); // o snapshot velho fica deliberadamente por usar na escrita
+
+        let out = std::fs::read_to_string(&p).unwrap();
+        assert!(
+            out.contains("serde = \"1\""),
+            "a adição concorrente tem de sobreviver (não lost-update): {out}"
+        );
+        assert!(
+            out.contains("anyhow = \"1\""),
+            "a nossa adição também aterra: {out}"
+        );
     }
 
     #[test]
