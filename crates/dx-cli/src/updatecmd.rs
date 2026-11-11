@@ -23,6 +23,60 @@ fn cargo() -> String {
     std::env::var("CARGO").unwrap_or_else(|_| "cargo".into())
 }
 
+/// Sidecar DURÁVEL com o Cargo.lock anterior enquanto um `update --apply` está a
+/// validar (C-2). A sua existência = "apply pendente/interrompido".
+const ROLLBACK_SIDECAR: &str = ".dx/update-rollback.lock";
+
+/// Antes de comitar o lockfile novo, guarda o actual num sidecar durável — para que
+/// um crash durante a validação (o `--test` demora minutos) não deixe um lockfile
+/// NÃO-validado em efeito sem nada para recuperar, violando a ADR-0016 (C-2).
+fn stash_rollback(root: &camino::Utf8Path, current_lock: &str) -> Result<()> {
+    apply_transaction(
+        root,
+        &[FileWrite {
+            path: root.join(ROLLBACK_SIDECAR),
+            new_contents: current_lock.to_string(),
+        }],
+    )
+    .context("stash the rollback lockfile")
+}
+
+/// Restaura o Cargo.lock a partir do sidecar e limpa-o (rollback durável). Usado
+/// quando a validação falha E na recuperação de um apply interrompido.
+fn restore_rollback(root: &camino::Utf8Path) -> Result<()> {
+    let sidecar = root.join(ROLLBACK_SIDECAR);
+    let backup =
+        std::fs::read_to_string(sidecar.as_std_path()).context("read the rollback sidecar")?;
+    apply_transaction(
+        root,
+        &[FileWrite {
+            path: root.join("Cargo.lock"),
+            new_contents: backup,
+        }],
+    )
+    .context("restore the previous Cargo.lock")?;
+    let _ = std::fs::remove_file(sidecar.as_std_path());
+    Ok(())
+}
+
+/// Apply validado com sucesso → o lockfile novo fica; descarta o sidecar.
+fn clear_rollback(root: &camino::Utf8Path) {
+    let _ = std::fs::remove_file(root.join(ROLLBACK_SIDECAR).as_std_path());
+}
+
+/// Se um `update --apply` anterior foi interrompido (sidecar presente), faz
+/// rollback do lockfile não-validado ANTES de prosseguir. Devolve `true` se
+/// recuperou. É o que torna o backup durável útil: o estado não-validado nunca
+/// fica permanentemente em efeito.
+fn recover_pending_rollback(root: &camino::Utf8Path) -> Result<bool> {
+    if root.join(ROLLBACK_SIDECAR).exists() {
+        restore_rollback(root)?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
 fn locate() -> Result<(Utf8PathBuf, Utf8PathBuf)> {
     let cwd = std::env::current_dir().context("CWD")?;
     let mut dir = Utf8PathBuf::from_path_buf(cwd).map_err(|_| anyhow::anyhow!("non-UTF8 CWD"))?;
@@ -200,11 +254,23 @@ pub fn cmd_update(
         return Ok(ExitCode::SUCCESS);
     }
     let real_lock = root.join("Cargo.lock");
+    // C-2: recuperar um `update --apply` anterior INTERROMPIDO (crash durante a
+    // validação) antes de mutar — faz rollback do lockfile não-validado que ficou
+    // em efeito, usando o sidecar durável. Sem isto, o estado não-validado persistia.
+    if recover_pending_rollback(&root).context("recover an interrupted update")? {
+        eprintln!(
+            "note: a previous `update --apply` was interrupted during validation — the unvalidated Cargo.lock was rolled back."
+        );
+    }
     let backup = std::fs::read_to_string(real_lock.as_std_path()).unwrap_or_default();
     let updated =
         std::fs::read_to_string(staging_lock.as_std_path()).context("read staged lockfile")?;
 
     eprintln!("\nApplying updated lockfile...");
+    // C-2: guardar o lockfile actual num sidecar DURÁVEL ANTES de comitar o novo, de
+    // modo que um crash na validação (minutos) deixe sempre algo para recuperar
+    // (ADR-0016) — o `backup` deixa de viver só em memória.
+    stash_rollback(&root, &backup).context("stash rollback before applying")?;
     apply_transaction(
         &root,
         &[FileWrite {
@@ -232,21 +298,17 @@ pub fn cmd_update(
     };
 
     if gate_ok && tests_ok {
+        // Validado: o lockfile novo fica; descarta-se o sidecar de rollback (C-2).
+        clear_rollback(&root);
         eprintln!(
             "\n\u{2713} Applied and validated (gate approved{}).",
             if test { ", tests passed" } else { "" }
         );
         Ok(ExitCode::SUCCESS)
     } else {
-        // Recovery: restore the previous lockfile.
-        apply_transaction(
-            &root,
-            &[FileWrite {
-                path: real_lock,
-                new_contents: backup,
-            }],
-        )
-        .context("restore previous Cargo.lock")?;
+        // Recuperação: restaura o lockfile anterior a partir do sidecar DURÁVEL
+        // (não de uma cópia só em memória) e limpa o sidecar (C-2).
+        restore_rollback(&root).context("restore previous Cargo.lock")?;
         eprintln!(
             "\n\u{2717} Validation failed ({}{}). Previous Cargo.lock RESTORED — project unchanged.",
             if gate_ok { "gate ok" } else { "gate not approved" },
@@ -260,6 +322,75 @@ pub fn cmd_update(
 mod tests {
     use super::*;
     use dx_integrity::PackageEntry;
+
+    // --- C-2: rollback durável do `update --apply` ---------------------------
+
+    #[test]
+    fn an_interrupted_apply_rolls_back_the_unvalidated_lockfile() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = camino::Utf8Path::from_path(tmp.path()).unwrap();
+        std::fs::write(root.join("Cargo.lock").as_std_path(), "OLD").unwrap();
+
+        // `apply` guarda o lockfile actual durável e comita o novo…
+        stash_rollback(root, "OLD").unwrap();
+        std::fs::write(root.join("Cargo.lock").as_std_path(), "NEW-unvalidated").unwrap();
+        // …e aqui o processo é MORTO durante a validação: o sidecar fica.
+        assert!(
+            root.join(ROLLBACK_SIDECAR).exists(),
+            "sidecar durável presente"
+        );
+
+        // O apply seguinte recupera: faz rollback do lockfile não-validado.
+        assert!(recover_pending_rollback(root).unwrap());
+        assert_eq!(
+            std::fs::read_to_string(root.join("Cargo.lock").as_std_path()).unwrap(),
+            "OLD",
+            "o Cargo.lock não-validado foi revertido para o anterior"
+        );
+        assert!(
+            !root.join(ROLLBACK_SIDECAR).exists(),
+            "sidecar limpo após recuperar"
+        );
+        // Sem sidecar, uma 2ª recuperação é no-op.
+        assert!(!recover_pending_rollback(root).unwrap());
+    }
+
+    #[test]
+    fn a_successful_apply_clears_the_rollback_sidecar() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = camino::Utf8Path::from_path(tmp.path()).unwrap();
+        std::fs::write(root.join("Cargo.lock").as_std_path(), "OLD").unwrap();
+        stash_rollback(root, "OLD").unwrap();
+        std::fs::write(root.join("Cargo.lock").as_std_path(), "NEW-validated").unwrap();
+
+        clear_rollback(root);
+        assert!(
+            !root.join(ROLLBACK_SIDECAR).exists(),
+            "sidecar descartado no sucesso"
+        );
+        // O lockfile validado permanece.
+        assert_eq!(
+            std::fs::read_to_string(root.join("Cargo.lock").as_std_path()).unwrap(),
+            "NEW-validated"
+        );
+    }
+
+    #[test]
+    fn a_failed_validation_restores_from_the_durable_sidecar() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = camino::Utf8Path::from_path(tmp.path()).unwrap();
+        std::fs::write(root.join("Cargo.lock").as_std_path(), "OLD").unwrap();
+        stash_rollback(root, "OLD").unwrap();
+        std::fs::write(root.join("Cargo.lock").as_std_path(), "NEW-bad").unwrap();
+
+        // Validação falhou → restaura do sidecar durável (não de memória).
+        restore_rollback(root).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(root.join("Cargo.lock").as_std_path()).unwrap(),
+            "OLD"
+        );
+        assert!(!root.join(ROLLBACK_SIDECAR).exists());
+    }
 
     fn mk(n: &str, v: &str) -> PackageEntry {
         PackageEntry {
