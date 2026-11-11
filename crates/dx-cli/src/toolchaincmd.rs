@@ -10,6 +10,7 @@ use std::process::{Command, ExitCode, Stdio};
 
 use anyhow::{bail, Context, Result};
 use camino::Utf8PathBuf;
+use dx_manifest::{apply_transaction, FileWrite};
 use dx_toolchain::{Pin, Provenance, LOCK_FILE, TOOLCHAIN_FILE};
 
 #[derive(clap::Subcommand)]
@@ -131,8 +132,14 @@ fn resolve_exact(channel: &str) -> Option<Provenance> {
 
 fn write_provenance(root: &Utf8PathBuf, prov: &Provenance) -> Result<()> {
     let path = root.join(LOCK_FILE);
-    std::fs::write(path.as_std_path(), dx_toolchain::provenance_to_json(prov))
-        .with_context(|| format!("write {path}"))?;
+    apply_transaction(
+        root,
+        &[FileWrite {
+            path: path.clone(),
+            new_contents: dx_toolchain::provenance_to_json(prov),
+        }],
+    )
+    .with_context(|| format!("write {path}"))?;
     eprintln!(
         "\u{2713} provenance recorded in {path}: {} (host {})",
         prov.rustc_version, prov.host
@@ -210,7 +217,16 @@ fn pin(root: &Utf8PathBuf, version: &str) -> Result<()> {
         p.targets = prev.targets;
     }
     let rendered = dx_toolchain::upsert_pin(existing.as_deref(), &p);
-    std::fs::write(path.as_std_path(), rendered).with_context(|| format!("write {path}"))?;
+    // Durável: lock + journal + rename atómico (ADR-0004), não `fs::write` nu — um
+    // crash deixaria o `rust-toolchain.toml` truncado; dois processos, lost-update (C-1).
+    apply_transaction(
+        root,
+        &[FileWrite {
+            path: path.clone(),
+            new_contents: rendered,
+        }],
+    )
+    .with_context(|| format!("write {path}"))?;
     eprintln!(
         "\u{2713} pinned `{version}` in {path} (standard rust-toolchain.toml — works without DX)."
     );

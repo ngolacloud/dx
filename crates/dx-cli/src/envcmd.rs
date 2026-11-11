@@ -57,8 +57,15 @@ pub fn cmd_capture() -> Result<ExitCode> {
     let root = locate_root()?;
     let env = dx_env::capture(&root, &now_iso(), now_unix());
     let path = root.join(FILE);
-    std::fs::write(path.as_std_path(), dx_env::to_json(&env))
-        .with_context(|| format!("write {path}"))?;
+    // Durável: lock + journal + rename atómico (ADR-0004), não `fs::write` nu (C-1).
+    dx_manifest::apply_transaction(
+        &root,
+        &[dx_manifest::FileWrite {
+            path: path.clone(),
+            new_contents: dx_env::to_json(&env),
+        }],
+    )
+    .with_context(|| format!("write {path}"))?;
     eprintln!("== dx environment capture ==");
     summary(&env);
     eprintln!("\n\u{2713} Environment recorded in {path} (commit it for CI/teams).");
